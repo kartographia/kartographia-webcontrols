@@ -1,0 +1,9 @@
+build/
+dist/
+nbproject/
+build.xml
+[Cc]onfig.json
+manifest.mf
+
+*.dll
+**/!README.TXT
