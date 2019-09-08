@@ -748,6 +748,39 @@ com.kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** getTileGeom
+  //**************************************************************************
+  /** Returns a WGS84 polygon representing the x,y,z tile coordinates.
+   */
+    this.getTileGeom = function(x,y,z){
+
+        var north = tile2lat(y, z);
+        var south = tile2lat(y + 1, z);
+        var west = tile2lon(x, z);
+        var east = tile2lon(x + 1, z);
+
+        var ne = [east, north];
+        var se = [east, south];
+        var sw = [west, south];
+        var nw = [west, north];
+        var coords = [ne,nw,sw,se,ne];
+
+        return new ol.geom.Polygon([coords]);
+    };
+
+    var tile2lon = function(x, z) {
+        return x / Math.pow(2.0, z) * 360.0 - 180;
+    };
+
+    var tile2lat = function(y, z) {
+        var n = Math.PI - (2.0 * Math.PI * y) / Math.pow(2.0, z);
+        var radians = Math.atan(Math.sinh(n));
+        //return Math.toDegrees(r);
+        return radians * (180/Math.PI);
+    };
+
+
+  //**************************************************************************
   //** calculateNumberOfTiles
   //**************************************************************************
   /** Returns the total number of tiles required to fit the map view for a
