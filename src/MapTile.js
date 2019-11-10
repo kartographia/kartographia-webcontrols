@@ -13,7 +13,7 @@ if(!com.kartographia) com.kartographia={};
 
 com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, projection) {
 
-
+    var me = this;
     var ULx = 0;
     var ULy = 0;
     var resX = 1;
@@ -140,8 +140,10 @@ com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, proje
   //**************************************************************************
   /** Used to add a linestring to the image
    */
-    this.addLine = function(coords, color, size){
+    this.addLine = function(coords, color, lineWidth){
+        console.log(color);
         ctx.strokeStyle = color;
+        if (lineWidth) ctx.lineWidth = lineWidth;
         ctx.beginPath();
         for (var i=0; i<coords.length; i++){
             var coord = coords[i];
@@ -155,6 +157,32 @@ com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, proje
         }
         //ctx.closePath();
         ctx.stroke();
+    };
+
+
+  //**************************************************************************
+  //** addPolygon
+  //**************************************************************************
+  /** Used to add a polygon to the image
+   */
+    this.addPolygon = function(coords, lineColor, fillColor, lineWidth){
+        if (fillColor){
+            ctx.fillStyle = fillColor;
+            ctx.beginPath();
+            for (var i=0; i<coords.length; i++){
+                var coord = coords[i];
+                var lat = coord[0];
+                var lon = coord[1];
+
+                var x1 = x(lon);
+                var y1 = y(lat);
+                if (i==0) ctx.moveTo(x1,y1);
+                else ctx.lineTo(x1,y1);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+        if (lineColor) me.addLine(coords, lineColor, lineWidth);
     };
 
 
