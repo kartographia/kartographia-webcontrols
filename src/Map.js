@@ -588,7 +588,85 @@ com.kartographia.Map = function(parent, config) {
   //** clearBoxSelect
   //**************************************************************************
     this.clearBoxSelect = function(){
+        me.clearDrawings();
+    };
+
+
+  //**************************************************************************
+  //** drawLine
+  //**************************************************************************
+    this.drawLine = function(style, callback){
+
+        if (style==null) style = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: '#3399cc',
+                width: 1
+            })
+        });
+
+        enableDraw('LineString', style, callback);
+    };
+
+
+  //**************************************************************************
+  //** drawPolygon
+  //**************************************************************************
+    this.drawPolygon = function(style, callback){
+
+        if (style==null) style = new ol.style.Style({
+            image: null, //removes ball/circle
+            stroke: new ol.style.Stroke({
+                color: '#3399cc',
+                width: 1
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(255, 255, 255, 0.4)'
+            })
+        });
+
+        enableDraw('Polygon', style, callback);
+    };
+
+
+  //**************************************************************************
+  //** clearDrawings
+  //**************************************************************************
+    this.clearDrawings = function(){
         drawingLayer.clear(true);
+        disableDraw();
+    };
+
+
+  //**************************************************************************
+  //** enableDraw
+  //**************************************************************************
+    var enableDraw = function(type, style, callback){
+        disableDraw();
+        var draw = new ol.interaction.Draw({
+            source: drawingLayer,
+            type: type,
+            style: style
+        });
+        draw.on('drawend', function(evt) {
+            var geom = evt.feature.getGeometry();
+            geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+            var wkt = wktFormatter.writeGeometry(geom);
+            disableDraw();
+            if (callback) callback.apply(me, [wkt, geom]);
+        });
+        map.addInteraction(draw);
+    };
+
+
+  //**************************************************************************
+  //** disableDraw
+  //**************************************************************************
+    var disableDraw = function(){
+        map.getInteractions().forEach(function (interaction) {
+            if (interaction instanceof ol.interaction.Draw) {
+                map.removeInteraction(interaction);
+            }
+        });
     };
 
 
