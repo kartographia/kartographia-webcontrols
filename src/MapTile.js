@@ -141,7 +141,6 @@ com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, proje
   /** Used to add a linestring to the image
    */
     this.addLine = function(coords, color, lineWidth){
-        console.log(color);
         ctx.strokeStyle = color;
         if (lineWidth) ctx.lineWidth = lineWidth;
         ctx.beginPath();
