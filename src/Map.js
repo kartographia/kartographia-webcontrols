@@ -45,7 +45,7 @@ com.kartographia.Map = function(parent, config) {
     //var mercator = new ol.proj.Projection("EPSG:3857");
     var wktFormatter = new ol.format.WKT();
     var drawingLayer = new ol.source.Vector();
-    var vectorLayer = new ol.layer.Vector({
+    var featureLayer = new ol.layer.Vector({
         source: new ol.source.Vector({})
     });
 
@@ -133,7 +133,6 @@ com.kartographia.Map = function(parent, config) {
 
       //Instantiate map
         map = new ol.Map({
-            //layers: layers,
             controls: ol.control.defaults({
                 attribution: false
             }),
@@ -148,16 +147,16 @@ com.kartographia.Map = function(parent, config) {
 
 
       //Add layers
-        addLayer(config.basemap);
+        addLayer(config.basemap).set("name", "basemap");
         if (config.layers){
             for (var i=0; i<config.layers.length; i++){
                 addLayer(config.layers[i]);
             }
         }
-        addLayer(vectorLayer);
+        addLayer(featureLayer).set("name", "featureLayer");
         addLayer(new ol.layer.Vector({
             source: drawingLayer
-        }));
+        })).set("name", "drawingLayer");
 
 
       //Set default style
@@ -178,7 +177,7 @@ com.kartographia.Map = function(parent, config) {
           fill: fill,
           stroke: stroke
         });
-        vectorLayer.setStyle(style);
+        featureLayer.setStyle(style);
 
 
 
@@ -595,6 +594,8 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** drawLine
   //**************************************************************************
+  /** Allows users to interactively draw a linestring on the map
+   */
     this.drawLine = function(style, callback){
 
         if (style==null) style = new ol.style.Style({
@@ -611,6 +612,8 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** drawPolygon
   //**************************************************************************
+  /** Allows users to interactively draw a polygon on the map
+   */
     this.drawPolygon = function(style, callback){
 
         if (style==null) style = new ol.style.Style({
@@ -647,12 +650,20 @@ com.kartographia.Map = function(parent, config) {
             type: type,
             style: style
         });
+        draw.on('drawstart', function (evt) {
+            drawingLayer.clear(true); //mimics boxstart
+        });
         draw.on('drawend', function(evt) {
-            var geom = evt.feature.getGeometry();
-            geom = geom.clone().transform('EPSG:3857','EPSG:4326');
-            var wkt = wktFormatter.writeGeometry(geom);
-            disableDraw();
-            if (callback) callback.apply(me, [wkt, geom]);
+            setTimeout(function() { //slight timeout required because...
+                                    //drawend fires before the feature is added!
+
+                var geom = evt.feature.getGeometry();
+                geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+                var wkt = wktFormatter.writeGeometry(geom);
+                disableDraw();
+                if (callback) callback.apply(me, [wkt, geom]);
+
+            }, 100);
         });
         map.addInteraction(draw);
     };
@@ -705,6 +716,9 @@ com.kartographia.Map = function(parent, config) {
                 catch(e){
                     console.log(e);
                 }
+            };
+            lyr.getFeatures = function(){
+                return this.getSource().getFeatures();
             };
             lyr.clear = function(){
                 this.getSource().clear(true);
@@ -770,10 +784,32 @@ com.kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** getLayers
+  //**************************************************************************
+  /** Returns an array of layers. Note that layer groups will be represented
+   *  as arrays.
+   */
+    this.getLayers = function(){
+        return getLayers(map.getLayers());
+    };
+
+    var getLayers = function(list){
+        var layers = [];
+        list.forEach(function(layer) {
+            if (layer instanceof ol.layer.Group) {
+                layers.push(layer.getLayers());
+            }
+            else layers.push(layer);
+        });
+        return layers;
+    };
+
+
+  //**************************************************************************
   //** addFeature
   //**************************************************************************
     this.addFeature = function(feature){
-        vectorLayer.addFeature(getFeature(feature));
+        featureLayer.addFeature(getFeature(feature));
     };
 
 
@@ -821,7 +857,7 @@ com.kartographia.Map = function(parent, config) {
   //** clearFeatures
   //**************************************************************************
     this.clearFeatures = function(){
-        vectorLayer.getSource().clear();
+        featureLayer.getSource().clear();
     };
 
 
