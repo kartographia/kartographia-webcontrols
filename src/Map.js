@@ -19,8 +19,8 @@ com.kartographia.Map = function(parent, config) {
             source: new ol.source.OSM()
         }),
         layers: [],
-        center: [25, 20],
-        zoom: 3,
+        center: [45, 20], //lat, lon
+        zoom: 5,
         style: {
             info: { //general style for telemetry data (e.g. loading, coord readout, etc)
                 background: "rgba(255, 255, 255, 0.5)",
@@ -29,14 +29,15 @@ com.kartographia.Map = function(parent, config) {
                 color: "rgba(0,0,0,0.85)",
                 cursor: "default"
             },
-            coord: {
+            coord: { //style for individual coordinates in the coordDiv
                 padding: "0 3px 0 0",
                 margin: "0 0 0 -5px",
                 overflowX: "hidden",
                 width: "100px",
                 textAlign: "right"
             }
-        }
+        },
+        coordinateFormat: "DMS" //vs DD
     };
 
 
@@ -56,6 +57,7 @@ com.kartographia.Map = function(parent, config) {
     var navHistory = [];
     var navStep = -1;
     var undoRedo = false;
+    var drawing = false;
 
 
   //**************************************************************************
@@ -139,11 +141,12 @@ com.kartographia.Map = function(parent, config) {
             interactions : ol.interaction.defaults({doubleClickZoom :false}),
             target: mainDiv,
             view: new ol.View({
-                center: ol.proj.transform(config.center, 'EPSG:4326', 'EPSG:3857'),
+                center: ol.proj.transform([config.center[1], config.center[0]], 'EPSG:4326', 'EPSG:3857'),
                 zoom: config.zoom,
                 maxZoom: 19
             })
         });
+        viewport = map.getViewport();
 
 
       //Add layers
@@ -198,10 +201,12 @@ com.kartographia.Map = function(parent, config) {
         dragBox.setActive(false);
 
         dragBox.on('boxstart', function (evt) {
+            drawing = true;
             drawingLayer.clear(true);
         });
 
         dragBox.on('boxend', function (evt) {
+            drawing = false;
             var geom = evt.target.getGeometry();
             var feat = new ol.Feature({
                 geometry: geom.clone()
@@ -239,23 +244,31 @@ com.kartographia.Map = function(parent, config) {
         });
 
 
-      //Watch for mouse move events
+        var getCoordinate = function(evt){
+            return ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+        };
+
+
+      //Watch for mouse events
         map.on("pointermove", function(evt){
-            var coord = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
-            updateCoords(coord[1], coord[0]);
+            var coord = getCoordinate(evt);
+            format(coord[1], coord[0]);
             me.onMouseMove(coord[1], coord[0]);
         });
-
-
-      //Watch for mouse click events
         map.on('singleclick', function(evt) {
-            //me.popup(evt.coordinate, '<div><h2>Coordinates</h2><p>Hello!</p></div>');
-            var coord = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
-            me.onMouseClick(coord[1], coord[0]);
+            var coord = getCoordinate(evt);
+            me.onMouseClick(coord[1], coord[0], evt.originalEvent);
         });
-
-
-        viewport = map.getViewport(); //map.viewport_;
+        map.on('contextmenu', function(evt) {
+            var coord = getCoordinate(evt);
+            me.onMouseClick(coord[1], coord[0], evt.originalEvent);
+        });
+        map.on('dblclick', function(evt) {
+            if (!drawing){
+                var coord = getCoordinate(evt);
+                me.onDoubleClick(coord[1], coord[0]);
+            }
+        });
 
 
 
@@ -352,12 +365,33 @@ com.kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
-  //** getMap
+  //** getStatusDiv
   //**************************************************************************
-  /** Returns the DOM element containing the coordinate readout.
+  /** Returns the DOM element containing the status readout
+   */
+    this.getStatusDiv = function(){
+        return statusDiv;
+    };
+
+
+  //**************************************************************************
+  //** getCoordinateDiv
+  //**************************************************************************
+  /** Returns the DOM element containing the coordinate readout
    */
     this.getCoordinateDiv = function(){
         return coordDiv;
+    };
+
+
+  //**************************************************************************
+  //** setCoordinateFormat
+  //**************************************************************************
+  /** Used to update the coordinate format in the coordinate readout
+   *  @param format DMS (Degrees, Minutes, Seconds), DD (Decimal Degrees)
+   */
+    this.setCoordinateFormat = function(format){
+        config.coordinateFormat = format;
     };
 
 
@@ -506,9 +540,17 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** onMouseClick
   //**************************************************************************
-  /** Called whenever the mouse moves in the map
+  /** Called whenever the user clicks on the map
    */
-    this.onMouseClick = function(lat, lon){};
+    this.onMouseClick = function(lat, lon, e){};
+
+
+  //**************************************************************************
+  //** onDoubleClick
+  //**************************************************************************
+  /** Called whenever the user double clicks on the map
+   */
+    this.onDoubleClick = function(lat, lon){};
 
 
   //**************************************************************************
@@ -645,6 +687,7 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
     var enableDraw = function(type, style, callback){
         disableDraw();
+        drawing = true;
         var draw = new ol.interaction.Draw({
             source: drawingLayer,
             type: type,
@@ -678,6 +721,7 @@ com.kartographia.Map = function(parent, config) {
                 map.removeInteraction(interaction);
             }
         });
+        drawing = false;
     };
 
 
@@ -911,12 +955,12 @@ com.kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
-  //** updateCoords
+  //** format
   //**************************************************************************
   /** Used to convert coordinates from decimal degrees to degrees, minutes,
    *  seconds
    */
-    var updateCoords = function(lat, lon){
+    var format = function(lat, lon){
 
         if (lon>180){
             while (lon>360) lon = lon-360;
@@ -933,52 +977,64 @@ com.kartographia.Map = function(parent, config) {
         var lonLabel = (lon>=0)?"E":"W";
 
 
-        var signlat = 1;
-        if(lat < 0)  { signlat = -1; }
-        var latAbs = Math.abs( Math.round(lat * 1000000.));
+        if (config.coordinateFormat==="DMS"){
 
-        var signlon = 1;
-        if(lon < 0)  { signlon = -1; }
-        var lonAbs = Math.abs( Math.round(lon * 1000000.));
+            var signlat = 1;
+            if(lat < 0)  { signlat = -1; }
+            var latAbs = Math.abs( Math.round(lat * 1000000.));
 
-        var latM = Math.floor(  ((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60);
-        var lonM = Math.floor(  ((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60);
+            var signlon = 1;
+            if(lon < 0)  { signlon = -1; }
+            var lonAbs = Math.abs( Math.round(lon * 1000000.));
 
-        if (latM<10) latM = "0" + latM;
-        if (lonM<10) lonM = "0" + lonM;
+            var latM = Math.floor(  ((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60);
+            var lonM = Math.floor(  ((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60);
 
-        var latS = ( Math.floor(((((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60) - Math.floor(((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60)) * 100000) *60/100000 );
-        var lonS = ( Math.floor(((((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60) - Math.floor(((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60)) * 100000) *60/100000 );
+            if (latM<10) latM = "0" + latM;
+            if (lonM<10) lonM = "0" + lonM;
 
-
-        if (latS<10) latS = "0" + latS;
-        if (lonS<10) lonS = "0" + lonS;
-
-        if (latS.toString().indexOf(".")<0) latS+=".0000";
-        if (lonS.toString().indexOf(".")<0) lonS+=".0000";
-
-        lat = ((Math.floor(latAbs / 1000000) * signlat) + "&deg;" + latM  + "'" + latS );
-        lon = ((Math.floor(lonAbs / 1000000) * signlon) + "&deg;" + lonM  + "'" + lonS );
+            var latS = ( Math.floor(((((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60) - Math.floor(((latAbs/1000000) - Math.floor(latAbs/1000000)) * 60)) * 100000) *60/100000 );
+            var lonS = ( Math.floor(((((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60) - Math.floor(((lonAbs/1000000) - Math.floor(lonAbs/1000000)) * 60)) * 100000) *60/100000 );
 
 
-        var arr = (lat + '0000').split("\.");
-        if (arr.length==2){
-            arr[1] = arr[1].substring(0, 4);
-            lat = arr[0] + "." + arr[1];
+            if (latS<10) latS = "0" + latS;
+            if (lonS<10) lonS = "0" + lonS;
+
+            if (latS.toString().indexOf(".")<0) latS+=".0000";
+            if (lonS.toString().indexOf(".")<0) lonS+=".0000";
+
+            lat = ((Math.floor(latAbs / 1000000) * signlat) + "&deg;" + latM  + "'" + latS );
+            lon = ((Math.floor(lonAbs / 1000000) * signlon) + "&deg;" + lonM  + "'" + lonS );
+
+
+            var arr = (lat + '0000').split("\.");
+            if (arr.length==2){
+                arr[1] = arr[1].substring(0, 4);
+                lat = arr[0] + "." + arr[1];
+            }
+
+            arr = (lon + '0000').split("\.");
+            if (arr.length==2){
+                arr[1] = arr[1].substring(0, 4);
+                lon = arr[0] + "." + arr[1];
+            }
+
+
+            lat+="\" " + latLabel;
+            lon+="\" " + lonLabel;
         }
-
-        arr = (lon + '0000').split("\.");
-        if (arr.length==2){
-            arr[1] = arr[1].substring(0, 4);
-            lon = arr[0] + "." + arr[1];
+        else{
+            lat = round(lat, 9) + " " + latLabel;
+            lon = round(lon, 9) + " " + lonLabel;
         }
-
-
-        lat+="\" " + latLabel;
-        lon+="\" " + lonLabel;
 
         xCoord.innerHTML = lon;
         yCoord.innerHTML = lat;
+    };
+
+
+    var round = function(value, decimalPlaces){
+        return Number(Math.round(parseFloat(value + 'e' + decimalPlaces)) + 'e-' + decimalPlaces);
     };
 
 
