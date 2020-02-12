@@ -16,7 +16,9 @@ com.kartographia.Map = function(parent, config) {
     var viewport;
     var defaultConfig = {
         basemap: new ol.layer.Tile({
-            source: new ol.source.OSM()
+            source: new ol.source.OSM({
+                crossOrigin: null //had to add this to avoid CORS erros starting in Feb 2020
+            })
         }),
         layers: [],
         center: [45, 20], //lat, lon
