@@ -219,6 +219,17 @@ com.kartographia.Map = function(parent, config) {
             me.onBoxSelect(wkt, geom.getCoordinates());
         });
 
+
+      //Add DragBox support for touch devices
+        var _handleEvent = ol.interaction.DragBox.handleEvent;
+        dragBox.handleEvent = function(e) {
+            if (e.pointerEvent && e.pointerEvent.pointerType === 'touch') {
+                e.pointerEvent.pointerType = 'mouse';
+            }
+            return _handleEvent.apply(this, arguments);
+        };
+
+
       //Add DragBox to the map
         map.addInteraction(dragBox);
 
@@ -274,41 +285,18 @@ com.kartographia.Map = function(parent, config) {
 
 
 
-      //Check whether the table has been added to the DOM
-        var w = viewport.offsetWidth;
-        if (w===0 || isNaN(w)){
-            var timer;
-
-            var checkWidth = function(){
-                var w = viewport.offsetWidth;
-                if (w===0 || isNaN(w)){
-                    timer = setTimeout(checkWidth, 100);
-                }
-                else{
-                    clearTimeout(timer);
-                    onRender();
-                }
-            };
-
-            timer = setTimeout(checkWidth, 100);
-        }
-        else{
-            onRender();
-        }
-
-    };
-
-    var onRender = function(){
-        me.resize();
-        addResizeListener(parent, me.resize);
-        //setTimeout(me.resize, 500);
+      //Add resize listener after the map has been added to the DOM
+        onRender(viewport, function(){
+            me.resize();
+            addResizeListener(parent, me.resize);
+        });
     };
 
 
   //**************************************************************************
   //** getCanvas
   //**************************************************************************
-  /** Returns the canvas
+  /** Returns the canvas element in which the map is rendered
    */
     this.getCanvas = function(){
         for (var i=0; i<viewport.childNodes.length; i++){
@@ -317,7 +305,6 @@ com.kartographia.Map = function(parent, config) {
             if (tagName=="canvas") return node;
         }
     };
-
 
 
   //**************************************************************************
@@ -411,7 +398,16 @@ com.kartographia.Map = function(parent, config) {
   //** updateSize
   //**************************************************************************
     this.resize = function(){
+
+      //Resize map
         map.updateSize();
+
+      //Update canvas width/height style attributes (some browsers don't like 100%)
+        var canvas = me.getCanvas();
+        var width = canvas.parentNode.offsetWidth;
+        var height = canvas.parentNode.offsetHeight;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
     };
 
 
@@ -1044,6 +1040,7 @@ com.kartographia.Map = function(parent, config) {
   //** JavaXT Utils
   //**************************************************************************
     var merge = javaxt.dhtml.utils.merge;
+    var onRender = javaxt.dhtml.utils.onRender;
     var setStyle = javaxt.dhtml.utils.setStyle;
     var addResizeListener = javaxt.dhtml.utils.addResizeListener;
 
