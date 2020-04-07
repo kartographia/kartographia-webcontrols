@@ -222,12 +222,17 @@ com.kartographia.Map = function(parent, config) {
 
       //Add DragBox support for touch devices
         var _handleEvent = ol.interaction.DragBox.handleEvent;
-        dragBox.handleEvent = function(e) {
-            if (e.pointerEvent && e.pointerEvent.pointerType === 'touch') {
-                e.pointerEvent.pointerType = 'mouse';
-            }
-            return _handleEvent.apply(this, arguments);
-        };
+        if (_handleEvent){
+            dragBox.handleEvent = function(e) {
+                if (e.pointerEvent && e.pointerEvent.pointerType === 'touch') {
+                    e.pointerEvent.pointerType = 'mouse';
+                }
+                return _handleEvent.apply(this, arguments);
+            };
+        }
+        else{
+
+        }
 
 
       //Add DragBox to the map
@@ -287,8 +292,33 @@ com.kartographia.Map = function(parent, config) {
 
       //Add resize listener after the map has been added to the DOM
         onRender(viewport, function(){
-            me.resize();
-            addResizeListener(parent, me.resize);
+
+            var callback = function(){
+                me.resize();
+                addResizeListener(parent, me.resize);
+            };
+
+            var w = viewport.getElementsByTagName("canvas").length;
+            if (w===0 || isNaN(w)){
+                var timer;
+
+                var checkWidth = function(){
+                    var w = viewport.getElementsByTagName("canvas").length;
+                    if (w===0 || isNaN(w)){
+                        timer = setTimeout(checkWidth, 100);
+                    }
+                    else{
+                        clearTimeout(timer);
+                        if (callback) callback.apply(me, []);
+                    }
+                };
+
+                timer = setTimeout(checkWidth, 100);
+            }
+            else{
+                if (callback) callback.apply(me, []);
+            }
+
         });
     };
 
@@ -299,11 +329,7 @@ com.kartographia.Map = function(parent, config) {
   /** Returns the canvas element in which the map is rendered
    */
     this.getCanvas = function(){
-        for (var i=0; i<viewport.childNodes.length; i++){
-            var node = viewport.childNodes[i];
-            var tagName = node.tagName.toLowerCase();
-            if (tagName=="canvas") return node;
-        }
+        return viewport.getElementsByTagName("canvas")[0];
     };
 
 
@@ -817,7 +843,7 @@ com.kartographia.Map = function(parent, config) {
                 var source = this.getSource();
                 source.tileCache.expireCache({});
                 source.tileCache.clear();
-                source.refresh();
+//                source.refresh();
             };
         }
 
