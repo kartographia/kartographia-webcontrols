@@ -231,7 +231,7 @@ com.kartographia.Map = function(parent, config) {
             };
         }
         else{
-
+            //???
         }
 
 
@@ -485,23 +485,8 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
     this.setExtent = function(extent, callback){
 
-
+        extent = getExtent(extent);
         var view = map.getView();
-
-        if (typeof(extent) === 'string' || extent instanceof String){
-            var feature = wktFormatter.readFeature(extent);
-            extent = feature.getGeometry();
-            extent.transform('EPSG:4326', 'EPSG:3857');
-        }
-        else{
-            if (extent instanceof ol.geom.Geometry){
-                //TODO: check if the extent is in the right projection
-            }
-            else{
-
-            }
-        }
-
         view.fit(extent, map.getSize());
         if (callback!=null) callback.call();
 
@@ -524,6 +509,36 @@ com.kartographia.Map = function(parent, config) {
             }
         }
         */
+    };
+
+
+  //**************************************************************************
+  //** containsExtent
+  //**************************************************************************
+    this.containsExtent = function(extent){
+        extent = getExtent(extent);
+        var mapExtent = map.getView().calculateExtent(map.getSize());
+        return ol.extent.containsExtent(mapExtent, extent);
+    };
+
+    var getExtent = function(extent){
+        if (typeof(extent) === 'string' || extent instanceof String){
+            var feature = wktFormatter.readFeature(extent);
+            var geom = feature.getGeometry();
+            geom.transform('EPSG:4326', 'EPSG:3857');
+            extent = geom.getExtent();
+        }
+        else{
+            if (extent instanceof ol.geom.Geometry){
+                //TODO: check if the extent is in the right projection
+                extent = extent.getExtent();
+            }
+            else if (extent instanceof ol.Feature){
+                var geom = extent.getGeometry();
+                extent = geom.getExtent();
+            }
+        }
+        return extent;
     };
 
 
