@@ -5,7 +5,7 @@ if(!com.kartographia) com.kartographia={};
 //**  Map
 //******************************************************************************
 /**
- *   Thin wrapper for OpenLayers. Tested with versions 3-5
+ *   Thin wrapper for OpenLayers. Tested with versions 3-6
  *
  ******************************************************************************/
 
@@ -145,7 +145,8 @@ com.kartographia.Map = function(parent, config) {
             view: new ol.View({
                 center: ol.proj.transform([config.center[1], config.center[0]], 'EPSG:4326', 'EPSG:3857'),
                 zoom: config.zoom,
-                maxZoom: 19
+                maxZoom: 19,
+                constrainResolution: true
             })
         });
         viewport = map.getViewport();
@@ -484,10 +485,17 @@ com.kartographia.Map = function(parent, config) {
   //** setExtent
   //**************************************************************************
     this.setExtent = function(extent, callback){
-
-        extent = getExtent(extent);
-        var view = map.getView();
-        view.fit(extent, map.getSize());
+        if (extent){
+            extent = getExtent(extent);
+            var view = map.getView();
+            try{
+                view.fit(extent, map.getSize());
+            }
+            catch(e){
+                console.log(e);
+                //console.log(extent);
+            }
+        }
         if (callback!=null) callback.call();
 
         /*
