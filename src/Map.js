@@ -152,8 +152,12 @@ com.kartographia.Map = function(parent, config) {
         viewport = map.getViewport();
 
 
+      //Add basemap
+        if (config.basemap){
+            addLayer(config.basemap).set("name", "basemap");
+        }
+
       //Add layers
-        addLayer(config.basemap).set("name", "basemap");
         if (config.layers){
             for (var i=0; i<config.layers.length; i++){
                 addLayer(config.layers[i]);
@@ -949,6 +953,52 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
     this.clearFeatures = function(){
         featureLayer.getSource().clear();
+    };
+
+
+  //**************************************************************************
+  //** getTilePreview
+  //**************************************************************************
+  /** Returns a url for an XYZ tile 
+   */
+    this.getTilePreview = function(layer, coord, callback){
+        if (!callback) return;
+
+        var proj = ol.proj.get('EPSG:3857');
+        var getPreview = function(){
+            var tileUrlFunction = layer.getSource().getTileUrlFunction();
+            var tileCoord = [3,2,3]; //Southeast coast of US, Carribean, and part of South America
+            var preview = tileUrlFunction(tileCoord, 1, proj);
+            if (preview){
+              //The tileUrlFunction doesn't work correctly in OL5 for some reason.
+              //For most XYZ tile sources, the y value is off. For OSM, Google, and
+              //our local map server, the "3" y-value is replaced with a "-4".
+              //To compensate, we'll replace the "-4" with a "3"
+                if (preview.indexOf("-4")>-1){
+                    preview = preview.replace("-4", "3"); //add hack to replace wierd -4 y coordinate
+                }
+            }
+            return preview;
+        };
+
+        var preview = getPreview();
+        if (preview){
+            callback.apply(me, [preview]);
+        }
+        else{
+            var timer;
+            var checkPreview = function(){
+                var preview = getPreview();
+                if (preview){
+                    clearTimeout(timer);
+                    callback.apply(me, [preview]);
+                }
+                else{
+                    timer = setTimeout(checkPreview, 1000);
+                }
+            };
+            timer = setTimeout(checkPreview, 1000);
+        }
     };
 
 
