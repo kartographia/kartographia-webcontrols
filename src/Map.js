@@ -870,7 +870,7 @@ com.kartographia.Map = function(parent, config) {
                 var source = this.getSource();
                 source.tileCache.expireCache({});
                 source.tileCache.clear();
-//                source.refresh();
+                if (source.clear) source.refresh();
             };
         }
 
@@ -959,7 +959,7 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** getTilePreview
   //**************************************************************************
-  /** Returns a url for an XYZ tile 
+  /** Returns a url for an XYZ tile
    */
     this.getTilePreview = function(layer, coord, callback){
         if (!callback) return;
