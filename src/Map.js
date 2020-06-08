@@ -557,10 +557,21 @@ com.kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** setCenter
   //**************************************************************************
-
     this.setCenter = function(lat, lon, zoomLevel){
         map.getView().setCenter(ol.proj.transform([lon, lat], 'EPSG:4326', 'EPSG:3857'));
         if (zoomLevel) map.getView().setZoom(zoomLevel);
+    };
+
+
+  //**************************************************************************
+  //** getCenter
+  //**************************************************************************
+  /** Returns the lat/lon coordinate of the center of the map
+   */
+    this.getCenter = function(){
+        var center = map.getView().getCenter();
+        var coord = new ol.geom.Point(center).transform('EPSG:3857','EPSG:4326').getCoordinates();
+        return [coord[1], coord[0]];
     };
 
 
@@ -948,6 +959,7 @@ com.kartographia.Map = function(parent, config) {
         }
     };
 
+
   //**************************************************************************
   //** clearFeatures
   //**************************************************************************
@@ -955,6 +967,119 @@ com.kartographia.Map = function(parent, config) {
         featureLayer.getSource().clear();
     };
 
+
+  //**************************************************************************
+  //** createPointLayer
+  //**************************************************************************
+    this.createPointLayer = function(color, size){
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({}),
+            style: getPointStyle(color, size),
+            visible: true
+        });
+        me.addLayer(layer);
+        updateExtents(layer);
+        return layer;
+    };
+
+    var getPointStyle = function(color, size){
+
+        if (typeof color === "string"){
+            color = ol.color.asArray(color);
+        }
+
+        var fill = new ol.style.Fill({
+            color: color
+        });
+
+        var stroke = new ol.style.Stroke({
+            color: color,
+            width: 0
+        });
+
+        return new ol.style.Style({
+            image: new ol.style.Circle({
+                fill: fill,
+                stroke: stroke,
+                radius: size
+            }),
+            fill: fill,
+            stroke: stroke
+        });
+    };
+
+
+  //**************************************************************************
+  //** createVectorLayer
+  //**************************************************************************
+    this.createVectorLayer = function(color){
+
+      //Create default style
+        var defaultStyle;
+        if (color){
+            defaultStyle = new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: color,
+                    width: 1
+                })
+            });
+        }
+        else{
+            defaultStyle = new ol.layer.Vector().getStyleFunction()();
+        }
+
+
+      //Create layer
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({}),
+            style: function(feature) {
+                var style = feature.get("style");
+                if (style) return style;
+
+                var featureColor = feature.get("color");
+                if (featureColor){
+                    return new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: featureColor,
+                            width: 1
+                        })
+                    });
+                }
+
+
+                return defaultStyle;
+            }
+        });
+        me.addLayer(layer);
+        updateExtents(layer);
+        return layer;
+    };
+
+
+  //**************************************************************************
+  //** updateExtents
+  //**************************************************************************
+  /** Adds 2 transparent points to the given map layer. Used to circumvent a
+   *  rendering bug in OpenLayers.
+   */
+    var updateExtents = function(layer){
+        layer.getSource().addFeature(new ol.Feature({
+            geometry: new ol.geom.Point([-20026376.39, -20048966.10]),
+            style: new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: ol.color.asString([0,0,0,0])
+                })
+            })
+        }));
+        layer.getSource().addFeature(new ol.Feature({
+            geometry: new ol.geom.Point([20026376.39, 20048966.10]),
+            style: new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: ol.color.asString([0,0,0,0])
+                })
+            })
+        }));
+    };
 
   //**************************************************************************
   //** getTilePreview
