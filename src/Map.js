@@ -17,12 +17,13 @@ com.kartographia.Map = function(parent, config) {
     var defaultConfig = {
         basemap: new ol.layer.Tile({
             source: new ol.source.OSM({
-                crossOrigin: null //had to add this to avoid CORS erros starting in Feb 2020
+                crossOrigin: null //had to add this to avoid CORS errors starting in Feb 2020
             })
         }),
         layers: [],
         center: [45, 20], //lat, lon
-        zoom: 5,
+        zoom: 5, //initial zoom
+        maxZoom: 19,
         style: {
             info: { //general style for telemetry data (e.g. loading, coord readout, etc)
                 background: "rgba(255, 255, 255, 0.5)",
@@ -145,7 +146,7 @@ com.kartographia.Map = function(parent, config) {
             view: new ol.View({
                 center: ol.proj.transform([config.center[1], config.center[0]], 'EPSG:4326', 'EPSG:3857'),
                 zoom: config.zoom,
-                maxZoom: 19,
+                maxZoom: config.maxZoom,
                 constrainResolution: true
             })
         });
@@ -192,8 +193,10 @@ com.kartographia.Map = function(parent, config) {
 
 
       //Add popup
-        popup = new ol.Overlay.Popup();
-        map.addOverlay(popup);
+        if (typeof ol.Overlay.Popup !== 'undefined'){
+            popup = new ol.Overlay.Popup();
+            map.addOverlay(popup);
+        }
 
 
       //Create DragBox interaction
@@ -1037,15 +1040,24 @@ com.kartographia.Map = function(parent, config) {
                 if (style) return style;
 
                 var featureColor = feature.get("color");
-                if (featureColor){
-                    return new ol.style.Style({
-                        stroke: new ol.style.Stroke({
+                var fillColor = feature.get("fill");
+                if (featureColor || fillColor){
+
+                    var opt = {};
+                    if (featureColor){
+                        opt.stroke = new ol.style.Stroke({
                             color: featureColor,
                             width: 1
-                        })
-                    });
-                }
+                        });
+                    }
+                    if (fillColor){
+                        opt.fill = new ol.style.Fill({
+                            color: fillColor
+                        });
+                    }
 
+                    return new ol.style.Style(opt);
+                }
 
                 return defaultStyle;
             }
