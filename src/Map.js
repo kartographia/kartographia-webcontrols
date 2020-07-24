@@ -1,5 +1,4 @@
-if(!com) var com={};
-if(!com.kartographia) com.kartographia={};
+if(!kartographia) var kartographia={};
 
 //******************************************************************************
 //**  Map
@@ -9,17 +8,13 @@ if(!com.kartographia) com.kartographia={};
  *
  ******************************************************************************/
 
-com.kartographia.Map = function(parent, config) {
+kartographia.Map = function(parent, config) {
     this.className = "com.kartographia.Map";
 
     var me = this;
     var viewport;
     var defaultConfig = {
-        basemap: new ol.layer.Tile({
-            source: new ol.source.OSM({
-                crossOrigin: null //had to add this to avoid CORS errors starting in Feb 2020
-            })
-        }),
+        basemap: "osm",
         layers: [],
         center: [45, 20], //lat, lon
         zoom: 5, //initial zoom
@@ -155,7 +150,7 @@ com.kartographia.Map = function(parent, config) {
 
       //Add basemap
         if (config.basemap){
-            addLayer(config.basemap).set("name", "basemap");
+            me.addBaseMap(config.basemap, "basemap");
         }
 
       //Add layers
@@ -791,6 +786,35 @@ com.kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** addBaseMap
+  //**************************************************************************
+    this.addBaseMap = function(basemap, name){
+        if (typeof basemap === "string"){
+            var url = basemap.toLowerCase();
+            if ((url.indexOf("{x}")>-1 && url.indexOf("{y}")>-1 && url.indexOf("{z}")>-1)){
+                basemap = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: basemap
+                    })
+                })
+            }
+            else{
+                if (url=='osm'){
+                    basemap = new ol.layer.Tile({
+                        source: new ol.source.OSM({
+                            crossOrigin: null //had to add this to avoid CORS errors starting in Feb 2020
+                        })
+                    });
+                }
+            }
+        }
+        var lyr = addLayer(basemap, 0);
+        if (name) lyr.set("name", name);
+        return lyr;
+    };
+
+
+  //**************************************************************************
   //** addLayer
   //**************************************************************************
     this.addLayer = function(lyr, idx){
@@ -1283,3 +1307,8 @@ com.kartographia.Map = function(parent, config) {
 
     init();
 };
+
+
+if(!com) var com={};
+if(!com.kartographia) com.kartographia={};
+com.kartographia.Map = kartographia.Map;
