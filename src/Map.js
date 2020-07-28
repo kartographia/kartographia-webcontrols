@@ -867,14 +867,56 @@ kartographia.Map = function(parent, config) {
 
 
       //Add custom show/hide methods
-        lyr.show = function(){
-            this.setVisible(true);
+        lyr.show = function(duration, callback){
+            if (isNaN(duration)){
+                this.setVisible(true);
+            }
+            else{
+                var finalOpacity = this.getOpacity();
+                if (finalOpacity>0){
+                    this.setOpacity(0);
+                    this.setVisible(true);
+                    fadeLayer(this, 0, finalOpacity, duration, callback);
+                }
+                else{
+                    this.setVisible(true);
+                    if (callback) callback.apply(me, [this]);
+                }
+            }
         };
-        lyr.hide = function(){
-            this.setVisible(false);
+        lyr.hide = function(duration, callback){
+            if (isNaN(duration)){
+                this.setVisible(false);
+            }
+            else{
+                var initialOpacity = this.getOpacity();
+                if (initialOpacity>0){
+                    fadeLayer(this, initialOpacity, 0, duration, function(layer){
+                        layer.setVisible(false);
+                        layer.setOpacity(initialOpacity);
+                        if (callback) callback.apply(me, [layer]);
+                    });
+                }
+                else{
+                    this.setVisible(false);
+                    if (callback) callback.apply(me, [this]);
+                }
+            }
         };
         lyr.isVisible = function(){
             return this.getVisible();
+        };
+
+
+      //Override the setOpacity method to provide anmimation options
+        lyr.setOpacity_ = lyr.setOpacity;
+        lyr.setOpacity = function(opacity, duration, callback){
+            if (isNaN(duration)){
+                this.setOpacity_(opacity);
+            }
+            else{
+                fadeLayer(this, this.getOpacity(), opacity, duration, callback);
+            }
         };
 
 
@@ -1209,6 +1251,51 @@ kartographia.Map = function(parent, config) {
             xTiles = tileRange['maxX'] - tileRange['minX'] + 1,
             yTiles = tileRange['maxY'] - tileRange['minY'] + 1;
         return xTiles * yTiles;
+    };
+
+
+  //**************************************************************************
+  //** fadeLayer
+  //**************************************************************************
+    var fadeLayer = function(layer, initialOpacity, finalOpacity, duration, callback, lastTick, timeLeft){
+
+        if (!lastTick) lastTick = new Date().getTime();
+        if (!timeLeft) timeLeft = duration;
+
+
+        var curTick = new Date().getTime();
+        var elapsedTicks = curTick - lastTick;
+
+
+
+      //If the animation is complete, ensure that the layer is set to the finalOpacity
+        if (timeLeft <= elapsedTicks){
+            layer.setOpacity(finalOpacity);
+            if (callback) callback.apply(me, [layer]);
+            return;
+        }
+
+
+        timeLeft -= elapsedTicks;
+        var percentComplete = 1-(timeLeft/duration);
+
+
+        var opacity;
+        var diff = Math.abs(initialOpacity-finalOpacity);
+        if (initialOpacity<finalOpacity){
+            opacity = initialOpacity+(diff*percentComplete);
+        }
+        else{
+            opacity = initialOpacity-(diff*percentComplete);
+        }
+
+
+        layer.setOpacity(opacity);
+
+
+        setTimeout(function(){
+            fadeLayer(layer, initialOpacity, finalOpacity, duration, callback, curTick, timeLeft);
+        }, 33);
     };
 
 
