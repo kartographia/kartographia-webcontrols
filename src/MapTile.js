@@ -1,6 +1,4 @@
-if(!com) var com={};
-if(!com.kartographia) com.kartographia={};
-
+if(!kartographia) var kartographia={};
 
 //******************************************************************************
 //**  MapTile
@@ -11,7 +9,7 @@ if(!com.kartographia) com.kartographia={};
  *
  ******************************************************************************/
 
-com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, projection) {
+kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, projection) {
 
     var me = this;
     var ULx = 0;
@@ -264,3 +262,9 @@ com.kartographia.MapTile = function(minX, minY, maxX, maxY, width, height, proje
 
     init();
 };
+
+
+
+if(!com) var com={};
+if(!com.kartographia) com.kartographia={};
+com.kartographia.MapTile = kartographia.MapTile;
