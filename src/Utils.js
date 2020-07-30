@@ -10,6 +10,31 @@ if(!kartographia) var kartographia={};
 
 kartographia.utils = {
 
+  //**************************************************************************
+  //** getTileCoordinate
+  //**************************************************************************
+  /** Returns the x,y coordinate of a map tile for a given lat/lon and zoom.
+   *  Credit:
+   *  https://github.com/chriswhong/map-tile-functions/blob/master/latLngToTileXY.js
+   */
+    getTileCoordinate : function(lat, lng, zoom) {
+
+        var clip = function(n,minValue,maxValue) {
+            return Math.min(Math.max(n, minValue), maxValue);
+        };
+
+        var latitude = clip(lat, -85.05112878, 85.05112878);
+        var longitude = clip(lng, -180, 180);
+
+        var x = (longitude + 180.0) / 360.0 * (1 << zoom);
+        var y = (1.0 - Math.log(Math.tan(latitude * Math.PI / 180.0) + 1.0 / Math.cos(lat* Math.PI / 180)) / Math.PI) / 2.0 * (1 << zoom);
+
+
+        var tileX = parseInt(Math.trunc(x));
+        var tileY = parseInt(Math.trunc(y));
+        return [tileX, tileY];
+    },
+
 
   //**************************************************************************
   //** line2Polygon
