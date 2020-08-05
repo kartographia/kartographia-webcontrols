@@ -921,30 +921,20 @@ kartographia.Map = function(parent, config) {
 
 
 
+        var statusTimer;
         if (lyr instanceof ol.layer.Tile){
-            lyr.on('precompose', function(event) {
+            lyr.on(["precompose", "prerender"], function(event) {
+                clearTimeout(statusTimer);
                 statusDiv.innerHTML = "Loading...";
-                var numTiles = calculateNumberOfTiles(this.getSource());
-
-                if (numTiles!=this.numTiles){
-                    this.numTiles=numTiles;
-                    this.numTilesLoaded = 0;
-                }
+                //var numTiles = calculateNumberOfTiles(this.getSource());
             });
-            lyr.on('postcompose', function(event) {
-
-                if (this.numTilesLoaded) this.numTilesLoaded+=1;
-                else this.numTilesLoaded=1;
-
-                if (this.numTilesLoaded>=this.numTiles){
-                    this.numTiles = 0;
-                    this.numTilesLoaded = 0;
-                    me.onLoad(this);
-
-                    setTimeout(function() {
-                        statusDiv.innerHTML = "";
-                    }, 1500);
-                }
+            lyr.on(["postcompose", "postrender"], function(event) {
+                var layer = this;
+                clearTimeout(statusTimer);
+                statusTimer = setTimeout(function() {
+                    statusDiv.innerHTML = "";
+                    me.onLoad(layer);
+                }, 800);
             });
             lyr.refresh = function(){
                 var source = this.getSource();
