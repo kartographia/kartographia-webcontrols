@@ -52,6 +52,7 @@ kartographia.Map = function(parent, config) {
     var popup;
     var dragBox;
     var statusDiv, coordDiv, xCoord, yCoord;
+    var statusTimer;
     var navHistory = [];
     var navStep = -1;
     var undoRedo = false;
@@ -437,6 +438,9 @@ kartographia.Map = function(parent, config) {
         var height = canvas.parentNode.offsetHeight;
         canvas.style.width = width + "px";
         canvas.style.height = height + "px";
+
+      //Fire onResize event
+        me.onResize();
     };
 
 
@@ -579,6 +583,22 @@ kartographia.Map = function(parent, config) {
   /** Called whenever the map extents are changed.
    */
     this.onExtentChange = function(){};
+
+
+  //**************************************************************************
+  //** onResize
+  //**************************************************************************
+  /** Called whenever the map is resized
+   */
+    this.onResize = function(){};
+
+
+  //**************************************************************************
+  //** beforeLoad
+  //**************************************************************************
+  /** Called before a tile layer has started loading tiles.
+   */
+    this.beforeLoad = function(layer){};
 
 
   //**************************************************************************
@@ -921,21 +941,24 @@ kartographia.Map = function(parent, config) {
 
 
 
-        var statusTimer;
+      //Add custom listeners and methods to tile layers
         if (lyr instanceof ol.layer.Tile){
-            lyr.on(["precompose", "prerender"], function(event) {
+
+            var source = lyr.getSource();
+            source.on('tileloadstart', function() { //["precompose", "prerender"]
+                me.beforeLoad(lyr);
                 clearTimeout(statusTimer);
                 statusDiv.innerHTML = "Loading...";
-                //var numTiles = calculateNumberOfTiles(this.getSource());
             });
-            lyr.on(["postcompose", "postrender"], function(event) {
-                var layer = this;
+
+            source.on(['tileloadend','tileloaderror'], function() { //["postcompose", "postrender"]
                 clearTimeout(statusTimer);
                 statusTimer = setTimeout(function() {
                     statusDiv.innerHTML = "";
-                    me.onLoad(layer);
+                    me.onLoad(lyr);
                 }, 800);
             });
+
             lyr.refresh = function(){
                 var source = this.getSource();
                 source.tileCache.expireCache({});
