@@ -42,7 +42,7 @@ kartographia.Map = function(parent, config) {
     var map;
     //var geographic = new ol.proj.Projection("EPSG:4326");
     //var mercator = new ol.proj.Projection("EPSG:3857");
-    var wktFormatter = new ol.format.WKT();
+    var WKT = new ol.format.WKT();
     var drawingLayer = new ol.source.Vector();
     var featureLayer = new ol.layer.Vector({
         source: new ol.source.Vector({})
@@ -218,9 +218,9 @@ kartographia.Map = function(parent, config) {
                 geometry: geom.clone()
             });
             drawingLayer.addFeature(feat);
-            geom = geom.clone().transform('EPSG:3857','EPSG:4326');
-            var wkt = wktFormatter.writeGeometry(geom);
-            me.onBoxSelect(wkt, geom.getCoordinates());
+            var coords = getCoords(geom);
+            var wkt = getWKT(coords);
+            me.onBoxSelect(wkt, [coords]);
         });
 
 
@@ -483,7 +483,10 @@ kartographia.Map = function(parent, config) {
         var view = map.getView();
         var extent = view.calculateExtent(map.getSize());
         var geom = ol.geom.Polygon.fromExtent(extent);
-        return wktFormatter.writeGeometry(geom.clone().transform('EPSG:3857','EPSG:4326'));
+        //return WKT.writeGeometry(geom.clone().transform('EPSG:3857','EPSG:4326'));
+        var coords = getCoords(geom);
+        var wkt = getWKT(coords);
+        return wkt;
     };
 
 
@@ -537,7 +540,7 @@ kartographia.Map = function(parent, config) {
 
     var getExtent = function(extent){
         if (typeof(extent) === 'string' || extent instanceof String){
-            var feature = wktFormatter.readFeature(extent);
+            var feature = WKT.readFeature(extent);
             var geom = feature.getGeometry();
             geom.transform('EPSG:4326', 'EPSG:3857');
             extent = geom.getExtent();
@@ -677,7 +680,7 @@ kartographia.Map = function(parent, config) {
    */
     this.popup = function(coordinate, html){
         if (typeof(coordinate) === 'string' || coordinate instanceof String){
-            var feature = wktFormatter.readFeature(coordinate);
+            var feature = WKT.readFeature(coordinate);
             coordinate = feature.getGeometry();
             coordinate.transform('EPSG:4326', 'EPSG:3857');
             coordinate = coordinate.getCoordinates();
@@ -781,8 +784,10 @@ kartographia.Map = function(parent, config) {
                                     //drawend fires before the feature is added!
 
                 var geom = evt.feature.getGeometry();
-                geom = geom.clone().transform('EPSG:3857','EPSG:4326');
-                var wkt = wktFormatter.writeGeometry(geom);
+                //geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+                //var wkt = WKT.writeGeometry(geom);
+                var coords = getCoords(geom);
+                var wkt = getWKT(coords);
                 disableDraw();
                 if (callback) callback.apply(me, [wkt, geom]);
 
@@ -1026,7 +1031,7 @@ kartographia.Map = function(parent, config) {
 
     var getGeometry = function(geom){
         if (typeof geom === 'string' || geom instanceof String){
-            var feature = wktFormatter.readFeature(geom);
+            var feature = WKT.readFeature(geom);
             geom = feature.getGeometry();
             geom.transform('EPSG:4326', 'EPSG:3857');
             return geom;
@@ -1309,6 +1314,54 @@ kartographia.Map = function(parent, config) {
         setTimeout(function(){
             fadeLayer(layer, initialOpacity, finalOpacity, duration, callback, curTick, timeLeft);
         }, 33);
+    };
+
+
+  //**************************************************************************
+  //** getCoords
+  //**************************************************************************
+  /** Returns coordinates for a given polygon in WGS84. Shifts coordinates
+   *  that cross the international dateline.
+   */
+    var getCoords = function(geom){
+        geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+        var extent = geom.getExtent();
+        var offset = 0;
+        var minX = extent[0];
+        if (minX<-180){
+            while (minX<-180){
+                minX = minX+360;
+                offset+=360;
+            }
+        }
+        else if (minX>180){
+            while (minX>180){
+                minX = minX-360;
+                offset=offset-360;
+            }
+        }
+        var coords = geom.getCoordinates()[0];
+        for (var i=0; i<coords.length; i++){
+            var coord = coords[i];
+            coord[0]+=offset;
+        }
+        return coords;
+    };
+
+
+  //**************************************************************************
+  //** getWKT
+  //**************************************************************************
+  /** Returns wkt representation of a polygon
+   */
+    var getWKT = function(coords){
+        var wkt = "POLYGON((";
+        for (var i=0; i<coords.length; i++){
+            if (i>0) wkt += ",";
+            wkt += coords[i].join(" ");
+        }
+        wkt += "))";
+        return wkt;
     };
 
 
