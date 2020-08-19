@@ -267,7 +267,20 @@ kartographia.Map = function(parent, config) {
 
 
         var getCoordinate = function(evt){
-            return ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+            var coord = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+            var x = coord[0];
+            if (x<-180){
+                while (x<-180){
+                    x = x+360;
+                }
+            }
+            else if (x>180){
+                while (x>180){
+                    x = x-360;
+                }
+            }
+            coord[0] = x;
+            return coord;
         };
 
 
