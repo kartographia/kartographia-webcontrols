@@ -35,7 +35,10 @@ kartographia.Map = function(parent, config) {
                 textAlign: "right"
             }
         },
-        coordinateFormat: "DMS" //vs DD
+        coordinateFormat: "DMS", //vs DD
+        renderers: {
+            zoomControl: null //replace with function as desired
+        }
     };
 
 
@@ -101,8 +104,6 @@ kartographia.Map = function(parent, config) {
 
 
 
-
-
       //Create status div
         statusDiv = document.createElement('div');
         setStyle(statusDiv, config.style.info);
@@ -135,6 +136,7 @@ kartographia.Map = function(parent, config) {
       //Instantiate map
         map = new ol.Map({
             controls: ol.control.defaults({
+                zoom: config.renderers.zoomControl ? false : true,
                 attribution: false
             }),
             interactions : ol.interaction.defaults({doubleClickZoom :false}),
@@ -147,6 +149,12 @@ kartographia.Map = function(parent, config) {
             })
         });
         viewport = map.getViewport();
+
+
+      //Add custom zoom control as needed
+        if (config.renderers.zoomControl){
+            config.renderers.zoomControl(mainDiv);
+        }
 
 
       //Add basemap
@@ -454,6 +462,35 @@ kartographia.Map = function(parent, config) {
 
       //Fire onResize event
         me.onResize();
+    };
+
+
+  //**************************************************************************
+  //** zoomIn
+  //**************************************************************************
+    this.zoomIn = function(){
+        zoom(true);
+    };
+
+
+  //**************************************************************************
+  //** zoomOut
+  //**************************************************************************
+    this.zoomOut = function(){
+        zoom(false);
+    };
+
+
+  //**************************************************************************
+  //** zoom
+  //**************************************************************************
+    var zoom = function(zoomIn){
+        var view = map.getView();
+        var z = view.getZoom() + (zoomIn ? 1 : -1);
+        view.animate({
+            zoom: z,
+            duration: 200
+        });
     };
 
 
