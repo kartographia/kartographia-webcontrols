@@ -449,12 +449,13 @@ kartographia.Map = function(parent, config) {
   //** updateSize
   //**************************************************************************
     this.resize = function(){
-
+        
       //Resize map
         map.updateSize();
 
       //Update canvas width/height style attributes (some browsers don't like 100%)
         var canvas = me.getCanvas();
+        if (!canvas) return;
         var width = canvas.parentNode.offsetWidth;
         var height = canvas.parentNode.offsetHeight;
         canvas.style.width = width + "px";
