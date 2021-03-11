@@ -449,7 +449,7 @@ kartographia.Map = function(parent, config) {
   //** updateSize
   //**************************************************************************
     this.resize = function(){
-        
+
       //Resize map
         map.updateSize();
 
@@ -1046,6 +1046,16 @@ kartographia.Map = function(parent, config) {
             else layers.push(layer);
         });
         return layers;
+    };
+
+
+  //**************************************************************************
+  //** removeLayer
+  //**************************************************************************
+  /** Used to remove a layer from the map
+   */
+    this.removeLayer = function(lyr){
+        map.removeLayer(lyr);
     };
 
 
