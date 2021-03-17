@@ -12,7 +12,6 @@ kartographia.Map = function(parent, config) {
     this.className = "com.kartographia.Map";
 
     var me = this;
-    var viewport;
     var defaultConfig = {
         basemap: "osm",
         layers: [],
@@ -42,7 +41,9 @@ kartographia.Map = function(parent, config) {
     };
 
 
-    var map;
+    var map, viewport;
+    var resizeListener;
+    var disableTransform = false;
     //var geographic = new ol.proj.Projection("EPSG:4326");
     //var mercator = new ol.proj.Projection("EPSG:3857");
     var WKT = new ol.format.WKT();
@@ -222,13 +223,12 @@ kartographia.Map = function(parent, config) {
         dragBox.on('boxend', function (evt) {
             drawing = false;
             var geom = evt.target.getGeometry();
-            var feat = new ol.Feature({
-                geometry: geom.clone()
-            });
-            drawingLayer.addFeature(feat);
+            drawingLayer.addFeature(new ol.Feature({
+                geometry: geom
+            }));
             var coords = getCoords(geom);
             var wkt = getWKT(coords);
-            me.onBoxSelect(wkt, [coords]);
+            me.onBoxSelect(wkt, geom);
         });
 
 
@@ -294,6 +294,7 @@ kartographia.Map = function(parent, config) {
 
       //Watch for mouse events
         map.on("pointermove", function(evt){
+            //console.log(ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326'));
             var coord = getCoordinate(evt);
             format(coord[1], coord[0]);
             me.onMouseMove(coord[1], coord[0]);
@@ -319,17 +320,17 @@ kartographia.Map = function(parent, config) {
         onRender(viewport, function(){
 
             var callback = function(){
-                me.resize();
-                addResizeListener(parent, me.resize);
+                me.resize(true);
+                resizeListener = addResizeListener(parent, me.resize);
             };
 
-            var w = viewport.getElementsByTagName("canvas").length;
-            if (w===0 || isNaN(w)){
+            var n = viewport.getElementsByTagName("canvas").length;
+            if (n===0 || isNaN(n)){
                 var timer;
 
                 var checkWidth = function(){
-                    var w = viewport.getElementsByTagName("canvas").length;
-                    if (w===0 || isNaN(w)){
+                    var n = viewport.getElementsByTagName("canvas").length;
+                    if (n===0 || isNaN(n)){
                         timer = setTimeout(checkWidth, 100);
                     }
                     else{
@@ -448,21 +449,34 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** updateSize
   //**************************************************************************
-    this.resize = function(){
+    this.resize = function(silent){
 
       //Resize map
         map.updateSize();
 
-      //Update canvas width/height style attributes (some browsers don't like 100%)
-        var canvas = me.getCanvas();
-        if (!canvas) return;
-        var width = canvas.parentNode.offsetWidth;
-        var height = canvas.parentNode.offsetHeight;
-        canvas.style.width = width + "px";
-        canvas.style.height = height + "px";
+      //Update canvas width/height style attributes as needed (no longer required in OL 6.x)
+        var arr = viewport.getElementsByTagName("canvas");
+        for (var i=0; i<arr.length; i++){
+            var canvas = arr[i];
+            if (hasStyle(canvas, "width") && hasStyle(canvas, "height")){
+                var width = canvas.parentNode.offsetWidth;
+                var height = canvas.parentNode.offsetHeight;
+                canvas.style.width = width + "px";
+                canvas.style.height = height + "px";
+                if (disableTransform && hasStyle(canvas, "transform")){
+                    canvas.style.transform = "";
+                }
+            }
+        }
 
       //Fire onResize event
-        me.onResize();
+        if (silent!==true) me.onResize();
+    };
+
+    var hasStyle = function(el, key){
+        var s = el.style[key];
+        if (s) return s.length>0;
+        return false;
     };
 
 
