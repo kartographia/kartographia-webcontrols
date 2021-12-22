@@ -848,11 +848,25 @@ kartographia.Map = function(parent, config) {
             setTimeout(function() { //slight timeout required because...
                                     //drawend fires before the feature is added!
 
-                var geom = evt.feature.getGeometry();
-                //geom = geom.clone().transform('EPSG:3857','EPSG:4326');
-                //var wkt = WKT.writeGeometry(geom);
-                var coords = getCoords(geom);
-                var wkt = getWKT(coords);
+
+              //Update style of the newly added feature
+                var feature = evt.feature;
+                feature.setStyle(style);
+
+
+              //Get geom and wkt
+                var wkt;
+                var geom = feature.getGeometry();
+                if (geom.getType()==='Polygon'){
+                    var coords = getCoords(geom);
+                    wkt = getWKT(coords);
+                }
+                else{
+                    geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+                    wkt = WKT.writeGeometry(geom);
+                }
+
+
                 disableDraw();
                 if (callback) callback.apply(me, [wkt, geom]);
 
