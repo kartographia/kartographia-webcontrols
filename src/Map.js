@@ -53,8 +53,6 @@ kartographia.Map = function(parent, config) {
     });
 
 
-    var popup;
-    var dragBox;
     var statusDiv, coordDiv, xCoord, yCoord;
     var statusTimer;
     var navHistory = [];
@@ -62,12 +60,20 @@ kartographia.Map = function(parent, config) {
     var undoRedo = false;
     var drawing = false;
 
+    var defaultStroke = new ol.style.Stroke({
+        color: '#3399cc',
+        width: 1
+    });
+
+    var defaultFill = new ol.style.Fill({
+        color: 'rgba(255, 255, 255, 0.4)'
+    });
+
+
 
   //**************************************************************************
   //** Constructor
   //**************************************************************************
-  /** Creates a new instance of this class. */
-
     var init = function(){
 
         if (typeof parent === "string"){
@@ -140,7 +146,10 @@ kartographia.Map = function(parent, config) {
                 zoom: config.renderers.zoomControl ? false : true,
                 attribution: false
             }),
-            interactions : ol.interaction.defaults({doubleClickZoom :false}),
+            interactions : ol.interaction.defaults({
+                doubleClickZoom: false, //ol.interaction.DoubleClickZoom
+                shiftDragZoom: false //ol.interaction.DragZoom
+            }),
             target: mainDiv,
             view: new ol.View({
                 center: ol.proj.transform([config.center[1], config.center[0]], 'EPSG:4326', 'EPSG:3857'),
@@ -149,6 +158,14 @@ kartographia.Map = function(parent, config) {
                 constrainResolution: true
             })
         });
+
+
+//      //List interactions
+//        map.getInteractions().forEach((interaction) => {
+//
+//        });
+
+
         viewport = map.getViewport();
 
 
@@ -195,60 +212,6 @@ kartographia.Map = function(parent, config) {
         });
         featureLayer.setStyle(style);
 
-
-
-      //Add popup
-        if (typeof ol.Overlay.Popup !== 'undefined'){
-            popup = new ol.Overlay.Popup();
-            map.addOverlay(popup);
-        }
-
-
-      //Create DragBox interaction
-        dragBox = new ol.interaction.DragBox({
-            condition: ol.events.condition.always, //noModifierKeys,
-            style: new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: [0, 0, 255, 1]
-                })
-            })
-        });
-        dragBox.setActive(false);
-
-        dragBox.on('boxstart', function (evt) {
-            drawing = true;
-            drawingLayer.clear(true);
-        });
-
-        dragBox.on('boxend', function (evt) {
-            drawing = false;
-            var geom = evt.target.getGeometry();
-            drawingLayer.addFeature(new ol.Feature({
-                geometry: geom
-            }));
-            var coords = getCoords(geom);
-            var wkt = getWKT(coords);
-            me.onBoxSelect(wkt, geom);
-        });
-
-
-      //Add DragBox support for touch devices
-        var _handleEvent = ol.interaction.DragBox.handleEvent;
-        if (_handleEvent){
-            dragBox.handleEvent = function(e) {
-                if (e.pointerEvent && e.pointerEvent.pointerType === 'touch') {
-                    e.pointerEvent.pointerType = 'mouse';
-                }
-                return _handleEvent.apply(this, arguments);
-            };
-        }
-        else{
-            //???
-        }
-
-
-      //Add DragBox to the map
-        map.addInteraction(dragBox);
 
 
       //Watch for map move events
@@ -436,18 +399,10 @@ kartographia.Map = function(parent, config) {
     };
 
 
-  //**************************************************************************
-  //** updateSize
-  //**************************************************************************
-  /** @deprecated Use resize method instead.
-   */
-    this.updateSize = function(){
-        me.resize();
-    };
 
 
   //**************************************************************************
-  //** updateSize
+  //** resize
   //**************************************************************************
     this.resize = function(silent){
 
@@ -542,16 +497,15 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** getExtent
   //**************************************************************************
-  /** Returns the geographic coordinates of the view extents as WKT.
+  /** Returns the geographic coordinates of the view extents as a WKT polygon
+   *  in WGS84.
    */
     this.getExtent = function(){
         var view = map.getView();
         var extent = view.calculateExtent(map.getSize());
         var geom = ol.geom.Polygon.fromExtent(extent);
-        //return WKT.writeGeometry(geom.clone().transform('EPSG:3857','EPSG:4326'));
         var coords = getCoords(geom);
-        var wkt = getWKT(coords);
-        return wkt;
+        return getWKT(coords);
     };
 
 
@@ -701,20 +655,14 @@ kartographia.Map = function(parent, config) {
     this.onDoubleClick = function(lat, lon){};
 
 
-  //**************************************************************************
-  //** onSelect
-  //**************************************************************************
-  /** Called whenever a feature is selected on the map
-   */
-    this.onSelect = function(){};
 
 
   //**************************************************************************
-  //** onBoxSelect
+  //** onLayerChange
   //**************************************************************************
-  /** Called whenever the client finishes a box select
+  /** Called whenever a layer is updated
    */
-    this.onBoxSelect = function(wkt, coords){};
+    this.onLayerChange = function(layer){};
 
 
   //**************************************************************************
@@ -724,7 +672,7 @@ kartographia.Map = function(parent, config) {
 
         var view = map.getView();
 
-        if (duration!=null){
+        if (!isNaN(parseInt(duration))){
             var pan = ol.animation.pan({
               duration: duration,
               source: view.getCenter()
@@ -736,63 +684,31 @@ kartographia.Map = function(parent, config) {
     };
 
 
-  //**************************************************************************
-  //** popup
-  //**************************************************************************
-  /** Used to render a popup/callout box on the map.
-   *  @param coordinate Either a WKT representing a point or an array with
-   *  lon/lat values in EPSG:3857.
-   */
-    this.popup = function(coordinate, html){
-        if (typeof(coordinate) === 'string' || coordinate instanceof String){
-            var feature = WKT.readFeature(coordinate);
-            coordinate = feature.getGeometry();
-            coordinate.transform('EPSG:4326', 'EPSG:3857');
-            coordinate = coordinate.getCoordinates();
-        }
-        popup.show(coordinate, html);
-    };
-
-
-  //**************************************************************************
-  //** hidePopup
-  //**************************************************************************
-  /** Used to hide the popup/callout box on the map.
-   */
-    this.hidePopup = function(){
-        popup.hide();
-    };
-
-
-  //**************************************************************************
-  //** enableBoxSelect
-  //**************************************************************************
-    this.enableBoxSelect = function(){
-        if (arguments.length===1 && arguments[0]===false) dragBox.setActive(false);
-        else dragBox.setActive(true);
-    };
-
-
-  //**************************************************************************
-  //** clearBoxSelect
-  //**************************************************************************
-    this.clearBoxSelect = function(){
-        me.clearDrawings();
-    };
 
 
   //**************************************************************************
   //** drawLine
   //**************************************************************************
-  /** Allows users to interactively draw a linestring on the map
+  /** Used to draw a line on the map. The line is added to the drawingLayer.
+   *  @param style Style definition (optional). See ol.style.Style for options.
+   *  @param callback Function to call after the user has finished drawing.
+   *  The callback should expect two parameters. Example:
+   <pre>
+        function(wkt, geom){}
+   </pre>
+   *  The wkt parameter is a well-known text representation of the rectangle
+   *  in WGS84. The geom is a OpenLayers geometry object in the current map
+   *  projection (e.g. EPSG:3857).
    */
     this.drawLine = function(style, callback){
 
-        if (style==null) style = new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: '#3399cc',
-                width: 1
-            })
+        if (arguments.length===1 && style instanceof Function){
+            callback = style;
+            style = null;
+        }
+
+        if (!style) style = new ol.style.Style({
+            stroke: defaultStroke
         });
 
         enableDraw('LineString', style, callback);
@@ -802,19 +718,29 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** drawPolygon
   //**************************************************************************
-  /** Allows users to interactively draw a polygon on the map
+  /** Used to draw a polygon on the map. The polygon is added to the
+   *  drawingLayer.
+   *  @param style Style definition (optional). See ol.style.Style for options.
+   *  @param callback Function to call after the user has finished drawing.
+   *  The callback should expect two parameters. Example:
+   <pre>
+        function(wkt, geom){}
+   </pre>
+   *  The wkt parameter is a well-known text representation of the polygon in
+   *  WGS84. The geom is a OpenLayers geometry object in the current map
+   *  projection (e.g. EPSG:3857).
    */
     this.drawPolygon = function(style, callback){
 
-        if (style==null) style = new ol.style.Style({
+        if (arguments.length===1 && style instanceof Function){
+            callback = style;
+            style = null;
+        }
+
+        if (!style) style = new ol.style.Style({
             image: null, //removes ball/circle
-            stroke: new ol.style.Stroke({
-                color: '#3399cc',
-                width: 1
-            }),
-            fill: new ol.style.Fill({
-                color: 'rgba(255, 255, 255, 0.4)'
-            })
+            stroke: defaultStroke,
+            fill: defaultFill
         });
 
         enableDraw('Polygon', style, callback);
@@ -822,8 +748,41 @@ kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** drawRectangle
+  //**************************************************************************
+  /** Used to draw a rectangle on the map. The rectangle is added to the
+   *  drawingLayer.
+   *  @param style Style definition (optional). See ol.style.Style for options.
+   *  @param callback Function to call after the user has finished drawing.
+   *  The callback should expect two parameters. Example:
+   <pre>
+        function(wkt, geom){}
+   </pre>
+   *  The wkt parameter is a well-known text representation of the rectangle
+   *  in WGS84. The geom is a OpenLayers geometry object in the current map
+   *  projection (e.g. EPSG:3857).
+   */
+    this.drawRectangle = function(style, callback){
+
+        if (arguments.length===1 && style instanceof Function){
+            callback = style;
+            style = null;
+        }
+
+        if (!style) style = new ol.style.Style({
+            stroke: defaultStroke,
+            fill: defaultFill
+        });
+
+        enableDraw('Rectangle', style, callback);
+    };
+
+
+  //**************************************************************************
   //** clearDrawings
   //**************************************************************************
+  /** Used to remove all drawings from the drawingLayer.
+   */
     this.clearDrawings = function(){
         drawingLayer.clear(true);
         disableDraw();
@@ -836,42 +795,95 @@ kartographia.Map = function(parent, config) {
     var enableDraw = function(type, style, callback){
         disableDraw();
         drawing = true;
-        var draw = new ol.interaction.Draw({
-            source: drawingLayer,
-            type: type,
-            style: style
-        });
-        draw.on('drawstart', function (evt) {
-            drawingLayer.clear(true); //mimics boxstart
-        });
-        draw.on('drawend', function(evt) {
-            setTimeout(function() { //slight timeout required because...
-                                    //drawend fires before the feature is added!
 
 
-              //Update style of the newly added feature
-                var feature = evt.feature;
-                feature.setStyle(style);
 
+        var draw, startKey, endKey, onDraw;
+        if (type==='Rectangle'){
+            startKey = 'boxstart';
+            endKey = 'boxend';
+            draw = new ol.interaction.DragBox({
+                condition: ol.events.condition.always, //noModifierKeys,
+                style: style
+            });
 
-              //Get geom and wkt
-                var wkt;
-                var geom = feature.getGeometry();
-                if (geom.getType()==='Polygon'){
-                    var coords = getCoords(geom);
-                    wkt = getWKT(coords);
-                }
-                else{
-                    geom = geom.clone().transform('EPSG:3857','EPSG:4326');
-                    wkt = WKT.writeGeometry(geom);
-                }
+          //Add DragBox support for touch devices
+            var _handleEvent = ol.interaction.DragBox.handleEvent;
+            if (_handleEvent){
+                draw.handleEvent = function(e) {
+                    if (e.pointerEvent && e.pointerEvent.pointerType === 'touch') {
+                        e.pointerEvent.pointerType = 'mouse';
+                    }
+                    return _handleEvent.apply(this, arguments);
+                };
+            }
+            else{
+                //???
+            }
 
-
+            onDraw = function(evt){
+                var geom = evt.target.getGeometry();
+                drawingLayer.addFeature(new ol.Feature({
+                    geometry: geom
+                }));
+                var coords = getCoords(geom);
+                var wkt = getWKT(coords);
                 disableDraw();
                 if (callback) callback.apply(me, [wkt, geom]);
+            };
 
-            }, 100);
+        }
+        else{
+            startKey = 'drawstart';
+            endKey = 'drawend';
+            draw = new ol.interaction.Draw({
+                condition: ol.events.condition.always, //noModifierKeys,
+                source: drawingLayer,
+                type: type,
+                style: style
+            });
+
+            onDraw = function(evt){
+                setTimeout(function() { //slight timeout required because...
+                                        //drawend fires before the feature is added!
+
+
+                  //Update style of the newly added feature
+                    var feature = evt.feature;
+                    feature.setStyle(style);
+
+
+                  //Get geom and wkt
+                    var wkt;
+                    var geom = feature.getGeometry();
+                    if (geom.getType()==='Polygon'){
+                        var coords = getCoords(geom);
+                        wkt = getWKT(coords);
+                    }
+                    else{
+                        wkt = WKT.writeGeometry(
+                            geom.clone().transform('EPSG:3857','EPSG:4326')
+                        );
+                    }
+
+                    disableDraw();
+                    if (callback) callback.apply(me, [wkt, geom]);
+
+                }, 100);
+            };
+        }
+
+
+        draw.on(startKey, function(evt) {
+            //drawingLayer.clear(true);
         });
+
+
+        draw.on(endKey, function(evt) {
+
+            onDraw(evt);
+        });
+
         map.addInteraction(draw);
     };
 
@@ -881,7 +893,8 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
     var disableDraw = function(){
         map.getInteractions().forEach(function (interaction) {
-            if (interaction instanceof ol.interaction.Draw) {
+            if (interaction instanceof ol.interaction.Draw ||
+                interaction instanceof ol.interaction.DragBox) {
                 map.removeInteraction(interaction);
             }
         });
@@ -900,7 +913,7 @@ kartographia.Map = function(parent, config) {
                     source: new ol.source.XYZ({
                         url: basemap
                     })
-                })
+                });
             }
             else{
                 if (url=='osm'){
@@ -921,6 +934,14 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** addLayer
   //**************************************************************************
+  /** Used to add a layer to the map
+   *  @param idx An index value (integer). Layers are rendered on top of one
+   *  another. You can specify the layer position by providing an index value
+   *  starting with 0 (lowest layer). This parameter is optional. If an index
+   *  is not defined, the layer will be added on top of the highest layer.
+   *  @return A layer object with custom functions including addFeature(),
+   *  getFeatures(), clear(), getExtent(), show(), hide(), isVisible()
+   */
     this.addLayer = function(lyr, idx){
 
       //Update index so that the layer appears below the vector and drawing layers
@@ -943,7 +964,7 @@ kartographia.Map = function(parent, config) {
         else map.addLayer(lyr);
 
 
-      //Add custom clear() method directly to the layer
+      //Add custom methods directly to the layer
         var src = lyr.getSource();
         if (src instanceof ol.source.Vector){
             lyr.addFeature = function(feature){
@@ -963,6 +984,15 @@ kartographia.Map = function(parent, config) {
             lyr.getExtent = function(){
                 return this.getSource().getExtent();
             };
+            src.on("addfeature", function(){
+                me.onLayerChange(lyr);
+            });
+            src.on("removefeature", function(){
+                me.onLayerChange(lyr);
+            });
+            src.on("clear", function(){
+                me.onLayerChange(lyr);
+            });
         }
         else{
             lyr.clear = function(){};
@@ -1050,6 +1080,13 @@ kartographia.Map = function(parent, config) {
                 if (source.clear) source.refresh();
             };
         }
+
+
+      //Add layer listener to broadcast visibility changes
+        lyr.on("change:visible", function(){
+            me.onLayerChange(this);
+        });
+
 
         return lyr;
     };
