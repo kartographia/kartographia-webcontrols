@@ -43,6 +43,7 @@ kartographia.Map = function(parent, config) {
 
     var map, viewport;
     var resizeListener;
+    var mousePosition = [0,0];
     var disableTransform = false;
     //var geographic = new ol.proj.Projection("EPSG:4326");
     //var mercator = new ol.proj.Projection("EPSG:3857");
@@ -256,11 +257,23 @@ kartographia.Map = function(parent, config) {
 
 
       //Watch for mouse events
-        map.on("pointermove", function(evt){
-            //console.log(ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326'));
+        map.on("pointerdown", function(evt){
             var coord = getCoordinate(evt);
-            format(coord[1], coord[0]);
-            me.onMouseMove(coord[1], coord[0]);
+            me.onMouseDown(coord[1], coord[0], evt.originalEvent);
+        });
+        map.on("pointermove", function(evt){
+            var coord = getCoordinate(evt);
+            var lat = coord[1];
+            var lon = coord[0];
+
+            var dd = format(lat, coord[0]);
+            xCoord.innerHTML = dd[1];
+            yCoord.innerHTML = dd[0];
+
+            mousePosition[0] = lat;
+            mousePosition[1] = lon;
+
+            me.onMouseMove(lat, lon);
         });
         map.on('singleclick', function(evt) {
             var coord = getCoordinate(evt);
@@ -365,6 +378,17 @@ kartographia.Map = function(parent, config) {
    */
     this.getMap = function(){
         return map;
+    };
+
+
+  //**************************************************************************
+  //** getMousePosition
+  //**************************************************************************
+  /** Returns an array representing the most recent lat/lon mouse position in
+   *  the map.
+   */
+    this.getMousePosition = function(){
+        return mousePosition;
     };
 
 
@@ -640,6 +664,14 @@ kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** onMouseDown
+  //**************************************************************************
+  /** Called whenever the mouse down event is detected in the map
+   */
+    this.onMouseDown = function(lat, lon, e){};
+
+
+  //**************************************************************************
   //** onMouseClick
   //**************************************************************************
   /** Called whenever the user clicks on the map
@@ -653,8 +685,6 @@ kartographia.Map = function(parent, config) {
   /** Called whenever the user double clicks on the map
    */
     this.onDoubleClick = function(lat, lon){};
-
-
 
 
   //**************************************************************************
@@ -682,8 +712,6 @@ kartographia.Map = function(parent, config) {
 
         me.setExtent(extent, callback);
     };
-
-
 
 
   //**************************************************************************
@@ -838,6 +866,9 @@ kartographia.Map = function(parent, config) {
             endKey = 'drawend';
             draw = new ol.interaction.Draw({
                 condition: ol.events.condition.always, //noModifierKeys,
+                freehandCondition: function(){
+                    return false;
+                },
                 source: drawingLayer,
                 type: type,
                 style: style
@@ -967,6 +998,11 @@ kartographia.Map = function(parent, config) {
       //Add custom methods directly to the layer
         var src = lyr.getSource();
         if (src instanceof ol.source.Vector){
+
+          /** Used to add a feature to the layer
+           *  @param feature Accepts a ol.Feature with a geometry in EPSG:3857,
+           *  a ol.geom.Geometry in EPSG:3857, or a WKT geometry in EPSG:4326
+           */
             lyr.addFeature = function(feature){
                 try{
                     this.getSource().addFeature(getFeature(feature));
@@ -1565,8 +1601,11 @@ kartographia.Map = function(parent, config) {
             lon = round(lon, 9) + " " + lonLabel;
         }
 
+/*
         xCoord.innerHTML = lon;
         yCoord.innerHTML = lat;
+ */
+        return [lat, lon];
     };
 
 
