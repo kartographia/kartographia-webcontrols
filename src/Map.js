@@ -1115,6 +1115,65 @@ kartographia.Map = function(parent, config) {
                 source.tileCache.clear();
                 if (source.clear) source.refresh();
             };
+
+
+          //Special case for layers with a custom getImageData() function used
+          //to manipulate image tiles (e.g. render points)
+            lyr.on(["precompose", "prerender", "postcompose", "postrender"], function(obj){
+
+
+                var ctx = obj.context; //layer.getRenderer().context;
+                if (ctx){
+                    ctx.drawImage = function(){
+                        var img = arguments[0];
+
+
+                        var src = lyr.getSource();
+                        if (src && src.urls && lyr.getImageData){
+                            if (src.urls.length){
+
+                              //Check if url matches pattern (weak implementation!)
+                                var url = src.urls[0];
+                                url = url.replace("/{x}","");
+                                url = url.replace("/{y}","");
+                                url = url.replace("/{z}","");
+                                if (img.src.indexOf(url)>-1){
+
+                                    //console.log(url, img.src);
+
+                                    if (!img.png){
+                                        img.png = true;
+
+
+                                        var canvas = document.createElement('canvas');
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                        var ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0);
+                                        var imageData = lyr.getImageData(img, ctx);
+                                        if (imageData){
+                                            ctx.putImageData(imageData, 0, 0);
+                                        }
+                                        img.png = img.cloneNode();
+                                        img.png.src = canvas.toDataURL('image/png');
+
+                                    }
+                                    arguments[0] = img.png;
+
+                                }
+                            }
+                        }
+
+
+                        var drawImage = CanvasRenderingContext2D.prototype.drawImage;
+                        return drawImage.apply(this, arguments);
+
+                        //ctx.updatePixels.apply(this, arguments);
+                    };
+                }
+
+            });
+
         }
 
 
