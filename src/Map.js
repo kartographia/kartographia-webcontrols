@@ -4,7 +4,10 @@ if(!kartographia) var kartographia={};
 //**  Map
 //******************************************************************************
 /**
- *   Thin wrapper for OpenLayers. Tested with versions 3-6
+ *   Map component used to render layers of geographic information (e.g. points,
+ *   lines, polygons, images, etc). This component is build using OpenLayers
+ *   and has been tested with OpenLayers versions 3-8. The only other
+ *   dependency is the JavaXT Web Components Library.
  *
  ******************************************************************************/
 
@@ -14,10 +17,42 @@ kartographia.Map = function(parent, config) {
     var me = this;
     var defaultConfig = {
         basemap: "osm",
+
         layers: [],
+
+
+      /** Used to specify the initial lat/lon center point of the map. Default
+       *  is over Europe.
+       */
         center: [45, 20], //lat, lon
-        zoom: 5, //initial zoom
+
+
+      /** Used to specify the initial zoom level of the map. Default is 5.
+       */
+        zoom: 5,
+
+
+      /** Used to specify the minimum zoom level. Default is 0.
+       */
+        minZoom: 0,
+
+
+      /** Used to specify the maximum zoom level. Default is 19.
+       */
         maxZoom: 19,
+
+
+      /** If true, will allow intermediary zoom levels (e.g. 2.5, 3.1, etc).
+       *  Default is false so the map can only zoom in and out using sepecific
+       *  integer values (1, 2, 3, etc). Note that zooming to a specific
+       *  extent
+       */
+        partialZoom: false,
+
+
+      /** Style for individual elements within the component. Note that you can
+       *  provide CSS class names instead of individual style definitions.
+       */
         style: {
             info: { //general style for telemetry data (e.g. loading, coord readout, etc)
                 background: "rgba(255, 255, 255, 0.5)",
@@ -34,7 +69,14 @@ kartographia.Map = function(parent, config) {
                 textAlign: "right"
             }
         },
+
+
+      /** Used to specify the format for the coordinate read-out. Options are
+       *  "DMS" for degrees, minutes, seconds and "DD" for decimal degrees.
+       */
         coordinateFormat: "DMS", //vs DD
+
+
         renderers: {
             zoomControl: null //replace with function as desired
         }
@@ -103,38 +145,32 @@ kartographia.Map = function(parent, config) {
 
 
       //Create main div
-        var mainDiv = document.createElement('div');
-        mainDiv.style.position = "relative";
-        mainDiv.style.height = "100%";
+        var mainDiv = createElement('div', parent, {
+            position: "relative",
+            height: "100%"
+        });
         mainDiv.setAttribute("desc", me.className);
-        parent.appendChild(mainDiv);
         me.el = mainDiv;
 
 
-
       //Create status div
-        statusDiv = document.createElement('div');
-        setStyle(statusDiv, config.style.info);
+        statusDiv = createElement('div', mainDiv, config.style.info);
         statusDiv.style.position = "absolute";
         statusDiv.style.left = 0;
         statusDiv.style.bottom = 0;
         statusDiv.style.zIndex = 1;
-        mainDiv.appendChild(statusDiv);
 
 
       //Create div for coordinate readout
-        coordDiv = document.createElement('div');
-        setStyle(coordDiv, config.style.info);
+        coordDiv = createElement('div', mainDiv, config.style.info);
         coordDiv.style.position = "absolute";
         coordDiv.style.right = 0;
         coordDiv.style.bottom = 0;
         coordDiv.style.zIndex = 1;
-        mainDiv.appendChild(coordDiv);
 
-        xCoord = document.createElement('div');
-        setStyle(xCoord, config.style.coord);
+        xCoord = createElement('div', coordDiv, config.style.coord);
         xCoord.style.display = "inline-block";
-        coordDiv.appendChild(xCoord);
+
         yCoord = xCoord.cloneNode();
         coordDiv.appendChild(yCoord);
 
@@ -142,12 +178,20 @@ kartographia.Map = function(parent, config) {
 
 
       //Instantiate map
+        var controls = ol.control.defaults;
+        if (typeof controls === 'function') {} //ol <7
+        else controls = controls.defaults; //ol >= 7
+
+        var interactions = ol.interaction.defaults;
+        if (typeof interactions === 'function') {} //ol <7
+        else interactions = interactions.defaults; //ol >= 7
+
         map = new ol.Map({
-            controls: ol.control.defaults({
+            controls: controls({
                 zoom: config.renderers.zoomControl ? false : true,
                 attribution: false
             }),
-            interactions : ol.interaction.defaults({
+            interactions : interactions({
                 doubleClickZoom: false, //ol.interaction.DoubleClickZoom
                 shiftDragZoom: false //ol.interaction.DragZoom
             }),
@@ -155,8 +199,10 @@ kartographia.Map = function(parent, config) {
             view: new ol.View({
                 center: ol.proj.transform([config.center[1], config.center[0]], 'EPSG:4326', 'EPSG:3857'),
                 zoom: config.zoom,
+                minZoom: config.minZoom,
                 maxZoom: config.maxZoom,
-                constrainResolution: true
+                constrainResolution: config.partialZoom===true ? false: true,
+                showFullExtent: true
             })
         });
 
@@ -491,10 +537,15 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** getZoomLevel
   //**************************************************************************
-  /** Returns the zoom level (int)
+  /** Returns the zoom level (number)
    */
     this.getZoomLevel = function(){
         return map.getView().getZoom();
+    };
+
+    this.setZoomLevel = function(i){
+        if (isNaN(i)) return;
+        map.getView().setZoom(i);
     };
 
 
@@ -1145,7 +1196,7 @@ kartographia.Map = function(parent, config) {
                                         img.png = true;
 
 
-                                        var canvas = document.createElement('canvas');
+                                        var canvas = createElement('canvas');
                                         canvas.width = img.width;
                                         canvas.height = img.height;
                                         var ctx = canvas.getContext('2d');
@@ -1668,6 +1719,10 @@ kartographia.Map = function(parent, config) {
     };
 
 
+
+  //**************************************************************************
+  //** round
+  //**************************************************************************
     var round = function(value, decimalPlaces){
         return Number(Math.round(parseFloat(value + 'e' + decimalPlaces)) + 'e-' + decimalPlaces);
     };
@@ -1678,7 +1733,7 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
     var merge = javaxt.dhtml.utils.merge;
     var onRender = javaxt.dhtml.utils.onRender;
-    var setStyle = javaxt.dhtml.utils.setStyle;
+    var createElement = javaxt.dhtml.utils.createElement;
     var addResizeListener = javaxt.dhtml.utils.addResizeListener;
 
 
