@@ -89,6 +89,7 @@ kartographia.Map = function(parent, config) {
     var disableTransform = false;
     //var geographic = new ol.proj.Projection("EPSG:4326");
     //var mercator = new ol.proj.Projection("EPSG:3857");
+    var customProjections = {};
     var WKT = new ol.format.WKT();
     var drawingLayer = new ol.source.Vector();
     var featureLayer = new ol.layer.Vector({
@@ -285,7 +286,7 @@ kartographia.Map = function(parent, config) {
 
 
         var getCoordinate = function(evt){
-            var coord = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+            var coord = ol.proj.transform(evt.coordinate, me.getProjection(), "EPSG:4326");
             var x = coord[0];
             if (x<-180){
                 while (x<-180){
@@ -560,12 +561,69 @@ kartographia.Map = function(parent, config) {
 
 
   //**************************************************************************
+  //** addProjection
+  //**************************************************************************
+  /** Used to add a map projection to the projection database. This method
+   *  requires Proj4 (http://proj4js.org/)
+   *  @param code Keyword for the projection (e.g. "ESRI:102008" for Albers)
+   *  @param defs Proj4 projection definition. Example for Albers:
+   *  "+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+   *  @param extent Optional. Example for Albers:
+   *  [-18019909.21177587, -9009954.605703328, 18019909.21177587, 9009954.605703328]
+   *  @param worldExtent Optional. Example for Albers: [-179.99, -89.99, 179.99, 89]
+   */
+    this.addProjection = function(code, defs, extent, worldExtent){
+        if (typeof proj4 !== 'undefined'){
+            proj4.defs(code, defs);
+            ol.proj.proj4.register(proj4);
+
+            customProjections[code] = new ol.proj.Projection({
+                code: code,
+                extent: extent,
+                worldExtent: worldExtent
+            });
+        }
+    };
+
+
+  //**************************************************************************
+  //** setProjection
+  //**************************************************************************
+  /** Used to update the current map projection.
+   */
+    this.setProjection = function(value){
+
+      //Get new projection
+        var projection;
+        if (typeof value === "string"){
+            projection = customProjections[value];
+            if (!projection) projection = ol.proj.get(value);
+        }
+        else if (value instanceof ol.proj.Projection){
+            projection = value;
+        }
+        else{
+            return;
+        }
+
+
+      //Update view
+        map.setView(new ol.View({
+            projection: projection,
+            constrainResolution: config.partialZoom===true ? false: true,
+            showFullExtent: true
+        }));
+    };
+
+
+  //**************************************************************************
   //** getProjection
   //**************************************************************************
-  /** Returns the projection code for the current view (e.g. "EPSG:3857")
+  /** Returns a ol.proj.Projection object representing the current map
+   *  projection.
    */
     this.getProjection = function(){
-        return map.getView().getProjection().getCode();
+        return map.getView().getProjection();
     };
 
 
@@ -636,7 +694,7 @@ kartographia.Map = function(parent, config) {
         if (typeof(extent) === 'string' || extent instanceof String){
             var feature = WKT.readFeature(extent);
             var geom = feature.getGeometry();
-            geom.transform('EPSG:4326', 'EPSG:3857');
+            geom.transform("EPSG:4326", me.getProjection());
             extent = geom.getExtent();
         }
         else{
@@ -657,7 +715,7 @@ kartographia.Map = function(parent, config) {
   //** setCenter
   //**************************************************************************
     this.setCenter = function(lat, lon, zoomLevel){
-        map.getView().setCenter(ol.proj.transform([lon, lat], 'EPSG:4326', 'EPSG:3857'));
+        map.getView().setCenter(ol.proj.transform([lon, lat], "EPSG:4326", me.getProjection()));
         if (zoomLevel) map.getView().setZoom(zoomLevel);
     };
 
@@ -669,7 +727,7 @@ kartographia.Map = function(parent, config) {
    */
     this.getCenter = function(){
         var center = map.getView().getCenter();
-        var coord = new ol.geom.Point(center).transform('EPSG:3857','EPSG:4326').getCoordinates();
+        var coord = new ol.geom.Point(center).transform(me.getProjection(),"EPSG:4326").getCoordinates();
         return [coord[1], coord[0]];
     };
 
@@ -944,7 +1002,7 @@ kartographia.Map = function(parent, config) {
                     }
                     else{
                         wkt = WKT.writeGeometry(
-                            geom.clone().transform('EPSG:3857','EPSG:4326')
+                            geom.clone().transform(me.getProjection(),"EPSG:4326")
                         );
                     }
 
@@ -1069,7 +1127,10 @@ kartographia.Map = function(parent, config) {
                 this.getSource().clear(true);
             };
             lyr.getExtent = function(){
-                return this.getSource().getExtent();
+                try{
+                   return this.getSource().getExtent();
+                }
+                catch(e){}
             };
             src.on("addfeature", function(){
                 me.onLayerChange(lyr);
@@ -1305,7 +1366,7 @@ kartographia.Map = function(parent, config) {
         if (typeof geom === 'string' || geom instanceof String){
             var feature = WKT.readFeature(geom);
             geom = feature.getGeometry();
-            geom.transform('EPSG:4326', 'EPSG:3857');
+            geom.transform("EPSG:4326", me.getProjection());
             return geom;
         }
         else{
@@ -1596,7 +1657,7 @@ kartographia.Map = function(parent, config) {
    *  that cross the international dateline.
    */
     var getCoords = function(geom){
-        geom = geom.clone().transform('EPSG:3857','EPSG:4326');
+        geom = geom.clone().transform(me.getProjection(), "EPSG:4326");
         var extent = geom.getExtent();
         var offset = 0;
         var minX = extent[0];
