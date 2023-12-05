@@ -302,11 +302,17 @@ kartographia.Map = function(parent, config) {
             return coord;
         };
 
+        var getEvent = function(evt){
+            var e = evt.originalEvent;
+            e.pixel = evt.pixel;
+            return e;
+        };
+
 
       //Watch for mouse events
         map.on("pointerdown", function(evt){
             var coord = getCoordinate(evt);
-            me.onMouseDown(coord[1], coord[0], evt.originalEvent);
+            me.onMouseDown(coord[1], coord[0], getEvent(evt));
         });
         map.on("pointermove", function(evt){
             var coord = getCoordinate(evt);
@@ -320,20 +326,20 @@ kartographia.Map = function(parent, config) {
             mousePosition[0] = lat;
             mousePosition[1] = lon;
 
-            me.onMouseMove(lat, lon);
+            me.onMouseMove(lat, lon, getEvent(evt));
         });
         map.on('singleclick', function(evt) {
             var coord = getCoordinate(evt);
-            me.onMouseClick(coord[1], coord[0], evt.originalEvent);
+            me.onMouseClick(coord[1], coord[0], getEvent(evt));
         });
         map.on('contextmenu', function(evt) {
             var coord = getCoordinate(evt);
-            me.onMouseClick(coord[1], coord[0], evt.originalEvent);
+            me.onMouseClick(coord[1], coord[0], getEvent(evt));
         });
         map.on('dblclick', function(evt) {
             if (!drawing){
                 var coord = getCoordinate(evt);
-                me.onDoubleClick(coord[1], coord[0]);
+                me.onDoubleClick(coord[1], coord[0], getEvent(evt));
             }
         });
 
@@ -769,7 +775,7 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   /** Called whenever the mouse moves in the map
    */
-    this.onMouseMove = function(lat, lon){};
+    this.onMouseMove = function(lat, lon, e){};
 
 
   //**************************************************************************
@@ -793,7 +799,7 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   /** Called whenever the user double clicks on the map
    */
-    this.onDoubleClick = function(lat, lon){};
+    this.onDoubleClick = function(lat, lon, e){};
 
 
   //**************************************************************************
