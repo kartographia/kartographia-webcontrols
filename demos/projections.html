@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Map Projections</title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+
+<!-- OpenLayers -->
+<script src="lib/openlayers/ol.js"></script>
+<link href="lib/openlayers/ol.css" rel="stylesheet" />
+<script src="lib/openlayers/proj4.js"></script>
+
+
+<!-- JavaXT -->
+<script src="lib/javaxt/webcontrols.js"></script>
+<script src="lib/javaxt/style.js"></script>
+<link href="lib/javaxt/light.css" rel="stylesheet" />
+
+
+<!-- Kartographia -->
+<script src="../src/Map.js"></script>
+<script src="../src/Utils.js"></script>
+
+
+<!-- This app -->
+<link href="style.css" rel="stylesheet" />
+<script src="src/projections/Demo.js"></script>
+<script src="data/countries.js"></script>
+
+</head>
+<body>
+
+
+<div class="container">
+  <div class="box header">
+    <h1>Projections Demo</h1>
+    <p>This page is used to demonstrate how to render a vector map in different map projections.
+    </p>
+  </div>
+  <div class="box body"></div>
+  <div class="box footer"></div>
+</div>
+
+
+<script>
+window.onload = function() {
+
+
+  //If this file is served from a webserver, ensure that the path ends with
+  //a "/" character. Redirect browser as needed
+    var path = window.location.pathname;
+    var idx = path.lastIndexOf("/");
+    if (idx!==path.length-1){
+        idx = path.substring(idx).lastIndexOf(".");
+        if (idx===-1){
+            window.location.replace(window.location.origin + path + "/");
+            return;
+        }
+    }
+
+
+  //Prep page
+    javaxt.dhtml.utils.updateDOM();
+
+
+  //Instantiate and render map in the body element
+    var body = document.getElementsByClassName("box body")[0];
+    new kartographia.demo.Countries(body);
+
+
+};
+</script>
+
+</body>
+</html>
