@@ -1090,13 +1090,24 @@ kartographia.Map = function(parent, config) {
    */
     this.addLayer = function(lyr, idx){
 
+      //Check if the vector and drawing layers are present
+        var offset = 0;
+        var layers = map.getLayers();
+        layers.forEach((layer)=>{
+            if (layer===featureLayer) offset++;
+            else{
+                if (layer.getSource()===drawingLayer) offset++;
+            }
+        });
+
+
       //Update index so that the layer appears below the vector and drawing layers
-        var numLayers = map.getLayers().getLength();
+        var numLayers = layers.getLength();
         if (idx==null){
-            idx = numLayers-2;
+            idx = numLayers-offset;
         }
         else{
-            if (idx>numLayers-2) idx = idx-2;
+            if (idx>numLayers-offset) idx = idx-offset;
         }
 
         return addLayer(lyr, idx);
@@ -1308,8 +1319,8 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** getLayers
   //**************************************************************************
-  /** Returns an array of layers. Note that layer groups will be represented
-   *  as arrays.
+  /** Returns an array of layers, from highest to lowest. Note that layer
+   *  groups will be represented as arrays.
    */
     this.getLayers = function(){
         return getLayers(map.getLayers());
