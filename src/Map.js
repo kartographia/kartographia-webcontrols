@@ -1051,6 +1051,8 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** addBaseMap
   //**************************************************************************
+  /** Used to add a basemap. Basemap layers are added below all other layers.
+   */
     this.addBaseMap = function(basemap, name){
         if (typeof basemap === "string"){
             var url = basemap.toLowerCase();
@@ -1081,12 +1083,19 @@ kartographia.Map = function(parent, config) {
   //** addLayer
   //**************************************************************************
   /** Used to add a layer to the map
+   *
+   *  @param lyr A map layer (e.g. ol.layer.Tile or ol.layer.Vector).
+   *
    *  @param idx An index value (integer). Layers are rendered on top of one
    *  another. You can specify the layer position by providing an index value
    *  starting with 0 (lowest layer). This parameter is optional. If an index
    *  is not defined, the layer will be added on top of the highest layer.
-   *  @return A layer object with custom functions including addFeature(),
-   *  getFeatures(), clear(), getExtent(), show(), hide(), isVisible()
+   *
+   *  @return A layer object with custom functions including show(), hide(),
+   *  isVisible(), and setOpacity(). Tile layers will include an additional
+   *  refresh() function. Vector layers will include additional functions
+   *  including addFeature(), getFeatures(), clear(), getExtent(), and
+   *  updateExtents().
    */
     this.addLayer = function(lyr, idx){
 
@@ -1148,6 +1157,9 @@ kartographia.Map = function(parent, config) {
                    return this.getSource().getExtent();
                 }
                 catch(e){}
+            };
+            lyr.updateExtents = function(){
+                updateExtents(this);
             };
             src.on("addfeature", function(){
                 me.onLayerChange(lyr);
@@ -1509,23 +1521,22 @@ kartographia.Map = function(parent, config) {
    *  rendering bug in OpenLayers.
    */
     var updateExtents = function(layer){
-        layer.getSource().addFeature(new ol.Feature({
+        var src = layer.getSource();
+        var style = new ol.style.Style({
+            fill: new ol.style.Fill({
+                color: ol.color.asString([0,0,0,0])
+            })
+        });
+        src.addFeature(new ol.Feature({
             geometry: new ol.geom.Point([-20026376.39, -20048966.10]),
-            style: new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: ol.color.asString([0,0,0,0])
-                })
-            })
+            style: style
         }));
-        layer.getSource().addFeature(new ol.Feature({
+        src.addFeature(new ol.Feature({
             geometry: new ol.geom.Point([20026376.39, 20048966.10]),
-            style: new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: ol.color.asString([0,0,0,0])
-                })
-            })
+            style: style
         }));
     };
+
 
   //**************************************************************************
   //** getTilePreview
