@@ -643,7 +643,22 @@ kartographia.Map = function(parent, config) {
         var view = map.getView();
         var extent = view.calculateExtent(map.getSize());
         var geom = ol.geom.Polygon.fromExtent(extent);
-        var coords = getCoords(geom);
+
+        var coords;
+        geom = geom.transform(me.getProjection(), "EPSG:4326");
+        extent = geom.getExtent();
+        if (Math.abs(extent[0] - extent[2])>360){
+            var s = extent[1];
+            var n = extent[3];
+            coords = [
+                [-180, s], [-180, n], [180, n], [180, s], [-180, s]
+            ];
+        }
+        else{
+            coords = getCoords(geom, "EPSG:4326");
+        }
+
+
         return getWKT(coords);
     };
 
@@ -1681,11 +1696,23 @@ kartographia.Map = function(parent, config) {
   //**************************************************************************
   //** getCoords
   //**************************************************************************
-  /** Returns coordinates for a given polygon in WGS84. Shifts coordinates
+  /** Returns coordinates for a given geometry in WGS84. Shifts coordinates
    *  that cross the international dateline.
+   *  @param proj Projection associated with the geometry. This parameter is
+   *  optional and defaults to the current map projection.
    */
-    var getCoords = function(geom){
-        geom = geom.clone().transform(me.getProjection(), "EPSG:4326");
+    var getCoords = function(geom, proj){
+
+      //Clone the geometry
+        geom = geom.clone();
+
+
+      //Transform coordinates to WGS84
+        if (!proj) proj = me.getProjection();
+        if (proj!=="EPSG:4326") geom.transform(proj, "EPSG:4326");
+
+
+      //Get offset
         var extent = geom.getExtent();
         var offset = 0;
         var minX = extent[0];
@@ -1701,6 +1728,9 @@ kartographia.Map = function(parent, config) {
                 offset=offset-360;
             }
         }
+
+
+      //Update coordinates
         var coords = geom.getCoordinates()[0];
         for (var i=0; i<coords.length; i++){
             var coord = coords[i];
