@@ -94,7 +94,8 @@ kartographia.demo.Countries = function(parent, config) {
             strokeStyle: new ol.style.Stroke({
                 color: 'rgba(222, 221, 224, 0.4)',
                 width: 1
-            })
+            }),
+            wrapX: false
         }));
 
 
@@ -135,7 +136,7 @@ kartographia.demo.Countries = function(parent, config) {
         addProjection("Mollweide", "ESRI:54009",
         '+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 units=m +no_defs',
         [-18019909.21177587, -9009954.605703328, 18019909.21177587, 9009954.605703328],
-        [-179.99, -89.99, 179.99, 89]);
+        [-179.99, -84, 179.99, 84]); //these extents will affect the graticule
 
 
         addProjection("Albers", 'ESRI:102008',
@@ -171,10 +172,13 @@ kartographia.demo.Countries = function(parent, config) {
         var arr = [];
         features.forEach((feature)=>{
             var countryName = feature.get('name');
+            var code = projection.getCode();
 
-          //Remove Antarctica as needed
+
+          //Update Antarctica as needed
             if (countryName==="Antarctica"){
-                var code = projection.getCode();
+
+              //Remove Antarctica completely if Mercator or Albers USA
                 if (code==="EPSG:3857" || code==="ESRI:102008") return;
             }
 
@@ -190,7 +194,14 @@ kartographia.demo.Countries = function(parent, config) {
 
                     if (lon<0){
                         var offset = 180+lon;
-                        coords[i] = 180 + offset;
+                        lon = 180 + offset;
+
+
+                      //Special case for Mollweide - snap the lon to 180
+                        if (lon>180 && code==="ESRI:54009") lon = 180;
+
+
+                        coords[i] = lon;
                     }
 
                     i++;
